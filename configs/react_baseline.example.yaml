@@ -1,0 +1,18 @@
+dataset:
+  # repo 위치: /home/tako/urp/react 라고 가정
+  root_path: data/public/input
+
+agent:
+  # 평가 규칙 기준 모델명
+  model: qwen3.5:35b-a3b
+  api_base: "http://localhost:5050/v1"
+  api_key: "ollama"
+  max_steps: 16
+  temperature: 0.0
+
+run:
+  # 상대경로 유지 권장
+  output_dir: artifacts/runs
+  run_id: example_run_id
+  max_workers: 8
+  task_timeout_seconds: 600
