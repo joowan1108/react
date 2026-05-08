@@ -346,14 +346,20 @@ def verify_sql_candidates(
             )
 
     best_candidate_index = None
+    best_candidate_sql = None
+    best_candidate_acceptability = None
     if results:
         best_result = max(results, key=lambda item: (float(item["score"]), bool(item["valid"])))
         best_candidate_index = int(best_result["candidate_index"])
+        best_candidate_sql = str(best_result["sql"])
+        best_candidate_acceptability = str(best_result.get("acceptability") or "")
 
     return {
         "path": str(path),
         "question": question,
         "candidate_count": len(results),
         "best_candidate_index": best_candidate_index,
+        "best_candidate_sql": best_candidate_sql,
+        "best_candidate_acceptability": best_candidate_acceptability,
         "results": results,
     }

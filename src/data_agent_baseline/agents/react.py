@@ -172,10 +172,15 @@ def _augment_repeated_tool_error_hint(state: AgentRuntimeState, observation: dic
 
     if tool == "execute_context_sql" and error_kind in {"no_such_table", "no_such_column"}:
         updated["retry_hint"] = (
-            "Stop repeating the same SQL guess. Inspect the schema for this database path again "
-            "or switch to a different observed database path before writing more SQL."
+            "Stop repeating the same SQL guess. Use schema linking and SQL candidate generation "
+            "before making another direct SQL attempt."
         )
-        updated["suggested_next_actions"] = ["inspect_sqlite_schema", "list_context"]
+        updated["suggested_next_actions"] = [
+            "inspect_sqlite_schema",
+            "schema_link_sql_context",
+            "generate_sql_candidates",
+            "verify_sql_candidates",
+        ]
     elif tool == "execute_context_sql" and error_kind in {"missing_sqlite_asset", "path_escape"}:
         updated["retry_hint"] = (
             "Stop reusing the invalid database path. Choose a path that was previously observed "
@@ -189,6 +194,57 @@ def _augment_repeated_tool_error_hint(state: AgentRuntimeState, observation: dic
         updated["suggested_next_actions"] = ["list_context"]
 
     return updated
+
+
+def _augment_pipeline_observation_hint(action: str, observation: dict[str, object]) -> dict[str, object]:
+    if not observation.get("ok"):
+        return observation
+
+    if action == "verify_sql_candidates":
+        content = observation.get("content")
+        if not isinstance(content, dict):
+            return observation
+        results = content.get("results")
+        if not isinstance(results, list) or not results:
+            return observation
+        best_index = content.get("best_candidate_index")
+        best_result = None
+        if isinstance(best_index, int):
+            for result in results:
+                if isinstance(result, dict) and int(result.get("candidate_index", -1)) == best_index:
+                    best_result = result
+                    break
+        if best_result is None and isinstance(results[0], dict):
+            best_result = results[0]
+        if not isinstance(best_result, dict):
+            return observation
+
+        acceptability = str(best_result.get("acceptability") or "")
+        warnings = best_result.get("warnings")
+        warning_list = [str(item) for item in warnings] if isinstance(warnings, list) else []
+
+        updated = dict(observation)
+        if acceptability == "reject":
+            updated["retry_hint"] = (
+                "The best SQL candidate is still rejected. Revise the candidates using the "
+                "verification feedback instead of executing more direct SQL guesses."
+            )
+            updated["suggested_next_actions"] = ["revise_sql_candidates", "generate_sql_candidates"]
+        elif acceptability == "weak_accept" or warning_list:
+            updated["retry_hint"] = (
+                "The best SQL candidate is only weakly acceptable. Either revise it with the "
+                "verification feedback or execute only if no stronger candidate is available."
+            )
+            updated["suggested_next_actions"] = ["revise_sql_candidates", "execute_context_sql"]
+        else:
+            updated["retry_hint"] = (
+                "The best verified candidate looks acceptable. Prefer executing that candidate "
+                "instead of writing a fresh SQL guess."
+            )
+            updated["suggested_next_actions"] = ["execute_context_sql"]
+        return updated
+
+    return observation
 
 
 class ReActAgent:
@@ -301,6 +357,7 @@ class ReActAgent:
                 "tool": model_step.action,
                 "content": tool_result.content,
             }
+            observation = _augment_pipeline_observation_hint(model_step.action, observation)
             step_record = StepRecord(
                 step_index=step_index,
                 thought=model_step.thought,

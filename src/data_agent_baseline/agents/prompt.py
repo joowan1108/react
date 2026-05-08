@@ -23,15 +23,17 @@ Keep reasoning concise and grounded in the observed data.
 Preferred workflow:
 1. If the task depends on structured CSV or JSON data, prefer `scan` first.
 2. After `scan`, inspect the schema before writing SQL.
-3. If the task depends on text or markdown evidence, use `read_doc`, `retrieve`, or `summarize` as needed.
-4. Before `answer`, reduce the result to the smallest table that directly answers the question.
+3. If a structured-data task needs a complex join, value constraint, or multiple conditions, prefer this SQL workflow: `schema_link_sql_context` -> `generate_sql_candidates` -> `verify_sql_candidates` -> optional `revise_sql_candidates` -> final `execute_context_sql`.
+4. If the task depends on text or markdown evidence, use `read_doc`, `retrieve`, or `summarize` as needed.
+5. Before `answer`, reduce the result to the smallest table that directly answers the question.
 
 Structured-data rules:
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
-- Before writing a complex join or multi-condition SQL query, you may use `schema_link_sql_context` to identify likely relevant tables, columns, join keys, and value hints.
-- For a difficult SQL task, you may use `generate_sql_candidates` to draft a few grounded SQL options before comparing them.
-- For a difficult SQL task, you may compare a few candidate queries with `verify_sql_candidates` before choosing the final SQL to execute.
-- If a candidate query fails or gets weak verification feedback, you may use `revise_sql_candidates` to produce improved candidates before trying again.
+- Before writing a complex join or multi-condition SQL query, prefer `schema_link_sql_context` to identify likely relevant tables, columns, join keys, and value hints.
+- For a difficult SQL task, prefer `generate_sql_candidates` to draft a few grounded SQL options before committing to one SQL guess.
+- For a difficult SQL task, prefer `verify_sql_candidates` before choosing the final SQL to execute.
+- If a candidate query fails or gets weak verification feedback, prefer `revise_sql_candidates` before writing another fresh SQL guess from scratch.
+- If repeated SQL guesses fail, stop guessing and switch into the SQL workflow above instead of issuing more direct `execute_context_sql` calls.
 - Only query table names and column names that you have actually observed.
 - Do not guess table names, column names, or sqlite file paths.
 - Use `execute_context_sql` only after you know which database path and table names are valid.
@@ -41,6 +43,8 @@ Structured-data rules:
 Recovery rules:
 - Do not repeat the same failed action. Use the latest tool observation to choose a different next step.
 - If a SQL query fails, inspect schema or switch database path instead of repeating the same SQL guess.
+- After repeated SQL failures, use `schema_link_sql_context`, `generate_sql_candidates`, or `revise_sql_candidates` instead of another direct SQL guess.
+- If `verify_sql_candidates` marks a candidate as weak or rejected, use `revise_sql_candidates` or choose a stronger verified candidate before executing final SQL.
 - If a path-related tool call fails, reuse an observed valid path instead of inventing a new one.
 - If a previous step returned a formatting or parsing error, respond with one valid JSON object only and make `action_input` a JSON object.
 
@@ -75,6 +79,11 @@ Example response after scanning structured data:
 {"thought":"I should inspect the schema before writing SQL so I use valid table names.","action":"inspect_sqlite_schema","action_input":{"path":"/tmp/scanned.sqlite"}}
 ```
 
+Example response for schema linking before a complex join:
+```json
+{"thought":"This SQL looks complex, so I should identify likely tables, joins, and value filters before generating candidates.","action":"schema_link_sql_context","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?"}}
+```
+
 Example response when you need to reshape an intermediate result before answering:
 ```json
 {"thought":"I found the relevant records, but I should trim the result down to only the required final columns before submitting.","action":"execute_python","action_input":{"code":"print('final formatting step placeholder')"}}
@@ -83,6 +92,11 @@ Example response when you need to reshape an intermediate result before answerin
 Example response for difficult SQL generation:
 ```json
 {"thought":"This join looks non-trivial, so I should draft a few grounded SQL candidates first.","action":"generate_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","num_candidates":3}}
+```
+
+Example response for candidate verification:
+```json
+{"thought":"I should compare these SQL candidates before choosing the final one to execute.","action":"verify_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","candidates":[{"sql":"SELECT COUNT(*) FROM hero_power hp JOIN superhero s ON hp.hero_id = s.id JOIN superpower p ON hp.power_id = p.id WHERE p.power_name = 'Super Strength' AND s.height_cm > 200","rationale":"explicit join candidate"},{"sql":"SELECT * FROM hero_power hp JOIN superhero s ON hp.hero_id = s.id JOIN superpower p ON hp.power_id = p.id WHERE p.power_name = 'Super Strength' AND s.height_cm > 200","rationale":"wide join candidate"}]}}
 ```
 
 Example response for revising weak SQL candidates:
@@ -115,7 +129,9 @@ def build_task_prompt(task: PublicTask) -> str:
         "All tool file paths are relative to the task context directory. "
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
-        "For difficult SQL, you may compare candidate queries with `verify_sql_candidates` before executing the final one. "
+        "If the SQL looks difficult, prefer `schema_link_sql_context`, then `generate_sql_candidates`, then `verify_sql_candidates` before executing final SQL. "
+        "If direct SQL guesses fail more than once, stop guessing and switch to that SQL workflow before writing more SQL. "
+        "If verified candidates are weak or rejected, prefer `revise_sql_candidates` before another direct SQL guess. "
         "Use `knowledge.md` as semantic guidance, but trust observed schema and file contents more. "
         "Before `answer`, prefer a simple final result that directly answers the question."
     )
