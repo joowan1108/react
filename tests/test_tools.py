@@ -188,7 +188,7 @@ class TestSummarize:
             model=model,
         )
         assert result.ok
-        assert result.content["operator"] == "Summarize"
+        assert result.content["tool"] == "summarize"
         assert result.content["summary"] == "Short factual summary."
         assert result.content["focus"] == "diagnoses"
 
@@ -245,6 +245,89 @@ class TestInspectSqliteSchema:
 
 
 # ---------------------------------------------------------------------------
+# generate_sql_candidates
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateSqlCandidates:
+    def test_generates_candidates_from_model(self, task: PublicTask, sqlite_db: Path, registry):
+        model = ScriptedModelAdapter(
+            [
+                json.dumps(
+                    [
+                        {
+                            "sql": "SELECT COUNT(*) FROM products",
+                            "rationale": "simple aggregate candidate",
+                        },
+                        {
+                            "sql": "SELECT id, name FROM products",
+                            "rationale": "listing candidate",
+                        },
+                    ]
+                )
+            ]
+        )
+        result = registry.execute(
+            task,
+            "generate_sql_candidates",
+            {
+                "path": "store.db",
+                "question": "How many products are there?",
+                "num_candidates": 2,
+            },
+            model=model,
+        )
+        assert result.ok
+        assert result.content["candidate_count"] == 2
+        assert result.content["candidates"][0]["sql"] == "SELECT COUNT(*) FROM products"
+
+    def test_requires_model(self, task: PublicTask, sqlite_db: Path, registry):
+        with pytest.raises(RuntimeError, match="requires an available model"):
+            registry.execute(
+                task,
+                "generate_sql_candidates",
+                {
+                    "path": "store.db",
+                    "question": "How many products are there?",
+                },
+            )
+
+
+class TestReviseSqlCandidates:
+    def test_revises_candidates_from_model(self, task: PublicTask, sqlite_db: Path, registry):
+        model = ScriptedModelAdapter(
+            [
+                json.dumps(
+                    [
+                        {
+                            "sql": "SELECT COUNT(*) FROM products",
+                            "rationale": "remove wide projection and use aggregate",
+                        }
+                    ]
+                )
+            ]
+        )
+        result = registry.execute(
+            task,
+            "revise_sql_candidates",
+            {
+                "path": "store.db",
+                "question": "How many products are there?",
+                "verification_result": {
+                    "candidate_index": 0,
+                    "sql": "SELECT * FROM products",
+                    "warnings": ["result_too_wide_for_single_value_question"],
+                    "errors": [],
+                },
+            },
+            model=model,
+        )
+        assert result.ok
+        assert result.content["candidate_count"] == 1
+        assert result.content["candidates"][0]["sql"] == "SELECT COUNT(*) FROM products"
+
+
+# ---------------------------------------------------------------------------
 # execute_context_sql
 # ---------------------------------------------------------------------------
 
@@ -290,6 +373,39 @@ class TestExecuteContextSql:
         )
         assert result.ok
         assert len(result.content["rows"]) == 10
+
+
+class TestVerifySqlCandidates:
+    def test_logic_checks_and_acceptability(self, task: PublicTask, sqlite_db: Path, registry):
+        conn = sqlite3.connect(sqlite_db)
+        conn.execute("INSERT INTO products VALUES (1, 'Widget', 9.99)")
+        conn.commit()
+        conn.close()
+
+        result = registry.execute(
+            task,
+            "verify_sql_candidates",
+            {
+                "path": "store.db",
+                "question": "How many products are there?",
+                "schema_link_context": {
+                    "relevant_tables": ["products"],
+                    "value_hints": [],
+                },
+                "candidates": [
+                    {"sql": "SELECT COUNT(*) FROM products", "rationale": "good aggregate"},
+                    {"sql": "SELECT * FROM orders", "rationale": "wrong table"},
+                ],
+            },
+        )
+        assert result.ok
+        assert result.content["candidate_count"] == 2
+        best = result.content["results"][0]
+        weak = result.content["results"][1]
+        assert "logic_checks" in best
+        assert best["acceptability"] in {"accept", "weak_accept"}
+        assert weak["logic_checks"]["uses_any_relevant_tables"] is False
+        assert weak["acceptability"] == "reject"
 
 
 # ---------------------------------------------------------------------------

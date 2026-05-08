@@ -206,7 +206,7 @@ class ReActAgent:
         self.system_prompt = system_prompt or REACT_SYSTEM_PROMPT
 
     def _build_initial_context_steps(self, task: PublicTask) -> list[StepRecord]:
-        candidate_paths = ["knowledge.md", "context/knowledge.md"]
+        candidate_paths = ["knowledge.md"]
         initial_steps: list[StepRecord] = []
 
         for relative_path in candidate_paths:

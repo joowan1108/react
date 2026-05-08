@@ -28,6 +28,10 @@ Preferred workflow:
 
 Structured-data rules:
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
+- Before writing a complex join or multi-condition SQL query, you may use `schema_link_sql_context` to identify likely relevant tables, columns, join keys, and value hints.
+- For a difficult SQL task, you may use `generate_sql_candidates` to draft a few grounded SQL options before comparing them.
+- For a difficult SQL task, you may compare a few candidate queries with `verify_sql_candidates` before choosing the final SQL to execute.
+- If a candidate query fails or gets weak verification feedback, you may use `revise_sql_candidates` to produce improved candidates before trying again.
 - Only query table names and column names that you have actually observed.
 - Do not guess table names, column names, or sqlite file paths.
 - Use `execute_context_sql` only after you know which database path and table names are valid.
@@ -76,6 +80,16 @@ Example response when you need to reshape an intermediate result before answerin
 {"thought":"I found the relevant records, but I should trim the result down to only the required final columns before submitting.","action":"execute_python","action_input":{"code":"print('final formatting step placeholder')"}}
 ```
 
+Example response for difficult SQL generation:
+```json
+{"thought":"This join looks non-trivial, so I should draft a few grounded SQL candidates first.","action":"generate_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","num_candidates":3}}
+```
+
+Example response for revising weak SQL candidates:
+```json
+{"thought":"The previous candidates were weak, so I should revise them using the verification feedback.","action":"revise_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","verification_result":{"candidate_index":1,"warnings":["result_too_wide_for_single_value_question"],"errors":[]}}}
+```
+
 Example response when you have the final answer:
 ```json
 {"thought":"I have the final result table.","action":"answer","action_input":{"columns":["average_long_shots"],"rows":[["63.5"]]}}
@@ -101,6 +115,7 @@ def build_task_prompt(task: PublicTask) -> str:
         "All tool file paths are relative to the task context directory. "
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
+        "For difficult SQL, you may compare candidate queries with `verify_sql_candidates` before executing the final one. "
         "Use `knowledge.md` as semantic guidance, but trust observed schema and file contents more. "
         "Before `answer`, prefer a simple final result that directly answers the question."
     )

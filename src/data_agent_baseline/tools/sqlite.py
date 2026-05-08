@@ -8,7 +8,6 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     uri = f"file:{path.resolve().as_posix()}?mode=ro"
     return sqlite3.connect(uri, uri=True)
 
-
 def list_sqlite_table_names(path: Path) -> list[str]:
     with _connect_read_only(path) as conn:
         rows = conn.execute(
@@ -34,10 +33,51 @@ def inspect_sqlite_schema(path: Path) -> dict[str, object]:
         ).fetchall()
         tables: list[dict[str, object]] = []
         for name, create_sql in rows:
+            table_info_rows = conn.execute(f'PRAGMA table_info("{name}")').fetchall()
+            foreign_key_rows = conn.execute(f'PRAGMA foreign_key_list("{name}")').fetchall()
+
+            columns = [
+                {
+                    "cid": info_row[0],
+                    "name": info_row[1],
+                    "type": info_row[2],
+                    "notnull": bool(info_row[3]),
+                    "default_value": info_row[4],
+                    "primary_key_position": int(info_row[5]),
+                }
+                for info_row in table_info_rows
+            ]
+
+            primary_keys = [
+                column["name"]
+                for column in sorted(
+                    columns,
+                    key=lambda item: int(item["primary_key_position"]),
+                )
+                if int(column["primary_key_position"]) > 0
+            ]
+
+            foreign_keys = [
+                {
+                    "id": fk_row[0],
+                    "seq": fk_row[1],
+                    "to_table": fk_row[2],
+                    "from": fk_row[3],
+                    "to_column": fk_row[4],
+                    "on_update": fk_row[5],
+                    "on_delete": fk_row[6],
+                    "match": fk_row[7],
+                }
+                for fk_row in foreign_key_rows
+            ]
+
             tables.append(
                 {
                     "name": name,
                     "create_sql": create_sql,
+                    "columns": columns,
+                    "primary_keys": primary_keys,
+                    "foreign_keys": foreign_keys,
                 }
             )
     return {

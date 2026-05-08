@@ -15,6 +15,8 @@ from data_agent_baseline.tools.filesystem import (
     read_json_preview,
     resolve_context_path,
 )
+from data_agent_baseline.tools.sql_generate import generate_sql_candidates_with_model
+from data_agent_baseline.tools.sql_revise import revise_sql_candidates_with_model
 from data_agent_baseline.tools.link import link_sources
 from data_agent_baseline.tools.python_exec import execute_python_code
 from data_agent_baseline.tools.retrieve import (
@@ -23,7 +25,9 @@ from data_agent_baseline.tools.retrieve import (
     search_keyword_database,
 )
 from data_agent_baseline.tools.scan import scan_sources
+from data_agent_baseline.tools.sql_linking import build_schema_link_context
 from data_agent_baseline.tools.sqlite import execute_read_only_sql, inspect_sqlite_schema, list_sqlite_table_names
+from data_agent_baseline.tools.sql_verify import verify_sql_candidates
 from data_agent_baseline.tools.summarize import SummarizeRequest, summarize_text_with_model
 
 EXECUTE_PYTHON_TIMEOUT_SECONDS = 30
@@ -186,9 +190,105 @@ def _summarize(task: PublicTask, action_input: dict[str, Any], model: ModelAdapt
     return ToolExecutionResult(ok=True, content=content)
 
 
+def _schema_link_sql_context(
+    task: PublicTask,
+    action_input: dict[str, Any],
+    _: ModelAdapter | None,
+) -> ToolExecutionResult:
+    path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
+    question = str(action_input["question"])
+    schema = inspect_sqlite_schema(path)
+    content = build_schema_link_context(
+        question=question,
+        database_path=str(path),
+        schema_info=schema,
+    )
+    return ToolExecutionResult(ok=True, content=content)
+
+
+def _generate_sql_candidates(
+    task: PublicTask,
+    action_input: dict[str, Any],
+    model: ModelAdapter | None,
+) -> ToolExecutionResult:
+    if model is None:
+        raise RuntimeError("generate_sql_candidates requires an available model adapter.")
+
+    path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
+    question = str(action_input["question"])
+    num_candidates = int(action_input.get("num_candidates", 3))
+    raw_schema_link_context = action_input.get("schema_link_context")
+    schema_link_context = raw_schema_link_context if isinstance(raw_schema_link_context, dict) else None
+
+    schema = inspect_sqlite_schema(path)
+    content = generate_sql_candidates_with_model(
+        model,
+        question=question,
+        schema_info=schema,
+        schema_link_context=schema_link_context,
+        num_candidates=num_candidates,
+    )
+    content["path"] = str(path)
+    return ToolExecutionResult(ok=True, content=content)
+
+
 def _inspect_sqlite_schema(task: PublicTask, action_input: dict[str, Any], _: ModelAdapter | None) -> ToolExecutionResult:
     path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
     return ToolExecutionResult(ok=True, content=inspect_sqlite_schema(path))
+
+
+def _revise_sql_candidates(
+    task: PublicTask,
+    action_input: dict[str, Any],
+    model: ModelAdapter | None,
+) -> ToolExecutionResult:
+    if model is None:
+        raise RuntimeError("revise_sql_candidates requires an available model adapter.")
+
+    path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
+    question = str(action_input["question"])
+    verification_result = action_input.get("verification_result")
+    if not isinstance(verification_result, dict):
+        raise ValueError("revise_sql_candidates.verification_result must be an object.")
+
+    num_candidates = int(action_input.get("num_candidates", 2))
+    raw_schema_link_context = action_input.get("schema_link_context")
+    schema_link_context = raw_schema_link_context if isinstance(raw_schema_link_context, dict) else None
+
+    schema = inspect_sqlite_schema(path)
+    content = revise_sql_candidates_with_model(
+        model,
+        question=question,
+        schema_info=schema,
+        verification_result=verification_result,
+        schema_link_context=schema_link_context,
+        num_candidates=num_candidates,
+    )
+    content["path"] = str(path)
+    return ToolExecutionResult(ok=True, content=content)
+
+
+def _verify_sql_candidates(
+    task: PublicTask,
+    action_input: dict[str, Any],
+    _: ModelAdapter | None,
+) -> ToolExecutionResult:
+    path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
+    question = str(action_input["question"])
+    raw_candidates = action_input.get("candidates")
+    if not isinstance(raw_candidates, list) or not raw_candidates:
+        raise ValueError("verify_sql_candidates.candidates must be a non-empty list.")
+    raw_schema_link_context = action_input.get("schema_link_context")
+    schema_link_context = raw_schema_link_context if isinstance(raw_schema_link_context, dict) else None
+    limit = int(action_input.get("limit", 50))
+    content = verify_sql_candidates(
+        path=path,
+        candidates=raw_candidates,
+        question=question,
+        schema_link_context=schema_link_context,
+        limit=limit,
+    )
+    return ToolExecutionResult(ok=True, content=content)
 
 
 def _execute_context_sql(task: PublicTask, action_input: dict[str, Any], _: ModelAdapter | None) -> ToolExecutionResult:
@@ -309,10 +409,50 @@ def create_default_tool_registry() -> ToolRegistry:
                 "code": "import os\nprint(sorted(os.listdir('.')))",
             },
         ),
+        "generate_sql_candidates": ToolSpec(
+            name="generate_sql_candidates",
+            description="Use the model to generate a few grounded read-only SQL candidates from a question, an observed sqlite schema, and optional schema-linking hints.",
+            input_schema={
+                "path": "/tmp/scanned.sqlite",
+                "question": "How many superheroes with Super Strength have height over 200cm?",
+                "schema_link_context": {"relevant_tables": ["superhero", "superpower", "hero_power"]},
+                "num_candidates": 3,
+            },
+        ),
         "inspect_sqlite_schema": ToolSpec(
             name="inspect_sqlite_schema",
             description="Inspect tables and columns in a sqlite/db file inside context or a scanned temp sqlite database path.",
             input_schema={"path": "relative/or/absolute/path/to/file.sqlite"},
+        ),
+        "revise_sql_candidates": ToolSpec(
+            name="revise_sql_candidates",
+            description="Use the model to revise failed or weak SQL candidates using verification feedback, then return improved grounded SQL candidates.",
+            input_schema={
+                "path": "/tmp/scanned.sqlite",
+                "question": "How many superheroes with Super Strength have height over 200cm?",
+                "verification_result": {
+                    "candidate_index": 1,
+                    "sql": "SELECT * FROM ...",
+                    "warnings": ["result_too_wide_for_single_value_question"],
+                    "errors": [],
+                },
+                "schema_link_context": {"relevant_tables": ["superhero", "superpower", "hero_power"]},
+                "num_candidates": 2,
+            },
+        ),
+        "verify_sql_candidates": ToolSpec(
+            name="verify_sql_candidates",
+            description="Run and compare multiple candidate SQL queries against one sqlite database, then return execution errors, result shape, logic checks, warnings, acceptability, and a simple quality score for each candidate.",
+            input_schema={
+                "path": "/tmp/scanned.sqlite",
+                "question": "How many superheroes with Super Strength have height over 200cm?",
+                "schema_link_context": {"relevant_tables": ["superhero", "superpower", "hero_power"]},
+                "candidates": [
+                    {"sql": "SELECT COUNT(*) FROM ...", "rationale": "aggregate candidate"},
+                    {"sql": "SELECT * FROM ...", "rationale": "join-first candidate"},
+                ],
+                "limit": 50,
+            },
         ),
         "link": ToolSpec(
             name="link",
@@ -356,6 +496,11 @@ def create_default_tool_registry() -> ToolRegistry:
             description="Run this first when a task depends on structured CSV/JSON data. Convert structured files into a temporary SQLite database and return its path and table metadata.",
             input_schema={"sources": ["csv/member.csv", "json/patient.json"]},
         ),
+        "schema_link_sql_context": ToolSpec(
+            name="schema_link_sql_context",
+            description="Analyze a question together with an observed sqlite schema and return likely relevant tables, columns, join keys, and literal value hints before writing SQL.",
+            input_schema={"path": "/tmp/scanned.sqlite", "question": "How many superheroes with Super Strength have height over 200cm?"},
+        ),
         "summarize": ToolSpec(
             name="summarize",
             description="Summarize long context into a shorter fact-preserving summary for the next reasoning step. Accepts either raw `text` or a document `path`.",
@@ -367,7 +512,10 @@ def create_default_tool_registry() -> ToolRegistry:
         "build_retrieval_database": _build_retrieval_database,
         "execute_context_sql": _execute_context_sql,
         "execute_python": _execute_python,
+        "generate_sql_candidates": _generate_sql_candidates,
         "inspect_sqlite_schema": _inspect_sqlite_schema,
+        "revise_sql_candidates": _revise_sql_candidates,
+        "verify_sql_candidates": _verify_sql_candidates,
         "link": _link,
         "list_context": _list_context,
         "read_csv": _read_csv,
@@ -375,6 +523,7 @@ def create_default_tool_registry() -> ToolRegistry:
         "read_json": _read_json,
         "retrieve": _retrieve,
         "scan": _scan,
+        "schema_link_sql_context": _schema_link_sql_context,
         "summarize": _summarize,
     }
     return ToolRegistry(specs=specs, handlers=handlers)
