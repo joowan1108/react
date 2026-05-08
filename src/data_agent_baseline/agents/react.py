@@ -13,6 +13,7 @@ from data_agent_baseline.agents.prompt import (
 )
 from data_agent_baseline.agents.runtime import AgentRunResult, AgentRuntimeState, StepRecord
 from data_agent_baseline.benchmark.schema import PublicTask
+from data_agent_baseline.tools.filesystem import read_doc_preview
 from data_agent_baseline.tools.registry import ToolRegistry
 
 
@@ -109,6 +110,87 @@ def _build_tool_error_observation(exc: Exception, action: str) -> dict[str, obje
     return observation
 
 
+def _extract_recovery_signature(observation: dict[str, object]) -> tuple[str | None, str | None, str | None]:
+    if observation.get("error_type") != "tool_error":
+        return None, None, None
+
+    tool = str(observation.get("tool") or "")
+    error_text = str(observation.get("error") or "")
+    normalized_error = error_text.casefold()
+
+    error_kind = None
+    if "no such table" in normalized_error:
+        error_kind = "no_such_table"
+    elif "no such column" in normalized_error:
+        error_kind = "no_such_column"
+    elif "missing sqlite asset" in normalized_error:
+        error_kind = "missing_sqlite_asset"
+    elif "path escapes context dir" in normalized_error:
+        error_kind = "path_escape"
+    elif "missing context asset" in normalized_error:
+        error_kind = "missing_context_asset"
+
+    db_path = None
+    try:
+        payload = json.loads(error_text)
+        if isinstance(payload, dict):
+            raw_path = payload.get("path")
+            if raw_path is not None:
+                db_path = str(raw_path)
+            if error_kind is None:
+                payload_error = str(payload.get("error") or "").casefold()
+                if "no such table" in payload_error:
+                    error_kind = "no_such_table"
+                elif "no such column" in payload_error:
+                    error_kind = "no_such_column"
+    except Exception:
+        pass
+
+    return tool or None, db_path, error_kind
+
+
+def _augment_repeated_tool_error_hint(state: AgentRuntimeState, observation: dict[str, object]) -> dict[str, object]:
+    tool, db_path, error_kind = _extract_recovery_signature(observation)
+    if tool is None or error_kind is None:
+        return observation
+
+    repeat_count = 1
+    for previous_step in reversed(state.steps[-4:]):
+        prev_obs = previous_step.observation
+        if not isinstance(prev_obs, dict):
+            continue
+        prev_tool, prev_db_path, prev_error_kind = _extract_recovery_signature(prev_obs)
+        if prev_tool == tool and prev_error_kind == error_kind and prev_db_path == db_path:
+            repeat_count += 1
+
+    if repeat_count < 2:
+        return observation
+
+    updated = dict(observation)
+    updated["repeat_error"] = True
+    updated["repeat_count"] = repeat_count
+
+    if tool == "execute_context_sql" and error_kind in {"no_such_table", "no_such_column"}:
+        updated["retry_hint"] = (
+            "Stop repeating the same SQL guess. Inspect the schema for this database path again "
+            "or switch to a different observed database path before writing more SQL."
+        )
+        updated["suggested_next_actions"] = ["inspect_sqlite_schema", "list_context"]
+    elif tool == "execute_context_sql" and error_kind in {"missing_sqlite_asset", "path_escape"}:
+        updated["retry_hint"] = (
+            "Stop reusing the invalid database path. Choose a path that was previously observed "
+            "from scan output, inspect_sqlite_schema output, or list_context."
+        )
+        updated["suggested_next_actions"] = ["list_context", "inspect_sqlite_schema"]
+    elif error_kind == "missing_context_asset":
+        updated["retry_hint"] = (
+            "Stop guessing file paths. Use list_context and then copy an exact observed path."
+        )
+        updated["suggested_next_actions"] = ["list_context"]
+
+    return updated
+
+
 class ReActAgent:
     def __init__(
         self,
@@ -123,6 +205,37 @@ class ReActAgent:
         self.config = config or ReActAgentConfig()
         self.system_prompt = system_prompt or REACT_SYSTEM_PROMPT
 
+    def _build_initial_context_steps(self, task: PublicTask) -> list[StepRecord]:
+        candidate_paths = ["knowledge.md", "context/knowledge.md"]
+        initial_steps: list[StepRecord] = []
+
+        for relative_path in candidate_paths:
+            candidate = task.context_dir / relative_path
+            if not candidate.exists() or not candidate.is_file():
+                continue
+
+            preview = read_doc_preview(task, relative_path, max_chars=4000)
+            initial_steps.append(
+                StepRecord(
+                    step_index=0,
+                    thought="",
+                    action="__bootstrap_knowledge__",
+                    action_input={"path": relative_path, "max_chars": 4000},
+                    raw_response="",
+                    observation={
+                        "ok": True,
+                        "tool": "read_doc",
+                        "content": preview,
+                        "auto_context": True,
+                        "reason": "bootstrap_knowledge",
+                    },
+                    ok=True,
+                )
+            )
+            break
+
+        return initial_steps
+
     def _build_messages(self, task: PublicTask, state: AgentRuntimeState) -> list[ModelMessage]:
         system_content = build_system_prompt(
             self.tools.describe_for_prompt(),
@@ -131,7 +244,8 @@ class ReActAgent:
         messages = [ModelMessage(role="system", content=system_content)]
         messages.append(ModelMessage(role="user", content=build_task_prompt(task)))
         for step in state.steps:
-            messages.append(ModelMessage(role="assistant", content=step.raw_response))
+            if step.raw_response:
+                messages.append(ModelMessage(role="assistant", content=step.raw_response))
             messages.append(
                 ModelMessage(role="user", content=build_observation_prompt(step.observation))
             )
@@ -139,6 +253,7 @@ class ReActAgent:
 
     def run(self, task: PublicTask) -> AgentRunResult:
         state = AgentRuntimeState()
+        state.steps.extend(self._build_initial_context_steps(task))
         for step_index in range(1, self.config.max_steps + 1):
             raw_response = self.model.complete(self._build_messages(task, state))
             try:
@@ -167,6 +282,7 @@ class ReActAgent:
                 )
             except Exception as exc:
                 observation = _build_tool_error_observation(exc, model_step.action)
+                observation = _augment_repeated_tool_error_hint(state, observation)
                 state.steps.append(
                     StepRecord(
                         step_index=step_index,

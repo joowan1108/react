@@ -9,6 +9,19 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(uri, uri=True)
 
 
+def list_sqlite_table_names(path: Path) -> list[str]:
+    with _connect_read_only(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+            """
+        ).fetchall()
+    return [str(name) for (name,) in rows]
+
+
 def inspect_sqlite_schema(path: Path) -> dict[str, object]:
     with _connect_read_only(path) as conn:
         rows = conn.execute(

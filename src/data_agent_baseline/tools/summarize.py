@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from data_agent_baseline.agents.model import ModelAdapter, ModelMessage
 
-AOP_SUMMARIZE_DESCRIPTION = (
-    "condense lengthy text into shorter summaries to optimize context consumption and readability"
+SUMMARIZE_TOOL_DESCRIPTION = (
+    "condense long context into a shorter fact-preserving summary for the next reasoning step"
 )
 
 
@@ -22,7 +22,7 @@ def _truncate_text(text: str, max_input_chars: int) -> tuple[str, bool]:
     return text[:max_input_chars], True
 
 
-def build_aop_summarize_messages(request: SummarizeRequest) -> tuple[list[ModelMessage], bool]:
+def build_summarize_messages(request: SummarizeRequest) -> tuple[list[ModelMessage], bool]:
     normalized_text = request.text.strip()
     if not normalized_text:
         raise ValueError("summarize.text must be a non-empty string.")
@@ -30,11 +30,10 @@ def build_aop_summarize_messages(request: SummarizeRequest) -> tuple[list[ModelM
     truncated_text, was_truncated = _truncate_text(normalized_text, request.max_input_chars)
 
     instructions = [
-        "The next operator is Summarize.",
-        f"This operator is to {AOP_SUMMARIZE_DESCRIPTION}.",
-        "Please execute it following the instructions and output the results.",
-        "Return only the summary text.",
+        "You are helping a ReAct-style agent summarize context before the next tool or reasoning step.",
+        "Return only a concise summary.",
         "Preserve key entities, numbers, facts, constraints, and relationships.",
+        "Keep only information that may matter for answering the task correctly.",
         "Do not add information that is not present in the input context.",
     ]
     if request.focus:
@@ -46,8 +45,8 @@ def build_aop_summarize_messages(request: SummarizeRequest) -> tuple[list[ModelM
             ModelMessage(
                 role="system",
                 content=(
-                    "You are executing a semantic operator in an AOP-style LLM pipeline. "
-                    "Follow the operator instructions exactly and return only the operator result."
+                    "You are a summarization helper for a ReAct-style data agent. "
+                    "Summarize only the provided context and return only the summary text."
                 ),
             ),
             ModelMessage(role="user", content=user_prompt),
@@ -57,14 +56,14 @@ def build_aop_summarize_messages(request: SummarizeRequest) -> tuple[list[ModelM
 
 
 def summarize_text_with_model(model: ModelAdapter, request: SummarizeRequest) -> dict[str, object]:
-    messages, was_truncated = build_aop_summarize_messages(request)
+    messages, was_truncated = build_summarize_messages(request)
     summary = model.complete(messages).strip()
     if not summary:
-        raise RuntimeError("Summarize operator returned an empty response.")
+        raise RuntimeError("summarize returned an empty response.")
 
     return {
-        "operator": "Summarize",
-        "operator_description": AOP_SUMMARIZE_DESCRIPTION,
+        "tool": "summarize",
+        "tool_description": SUMMARIZE_TOOL_DESCRIPTION,
         "summary": summary,
         "input_char_count": len(request.text),
         "used_input_char_count": min(len(request.text), request.max_input_chars),

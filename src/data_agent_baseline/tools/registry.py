@@ -22,7 +22,7 @@ from data_agent_baseline.tools.retrieve import (
     search_keyword_database,
 )
 from data_agent_baseline.tools.scan import scan_sources
-from data_agent_baseline.tools.sqlite import execute_read_only_sql, inspect_sqlite_schema
+from data_agent_baseline.tools.sqlite import execute_read_only_sql, inspect_sqlite_schema, list_sqlite_table_names
 from data_agent_baseline.tools.summarize import SummarizeRequest, summarize_text_with_model
 
 EXECUTE_PYTHON_TIMEOUT_SECONDS = 30
@@ -194,7 +194,22 @@ def _execute_context_sql(task: PublicTask, action_input: dict[str, Any], _: Mode
     path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
     sql = str(action_input["sql"])
     limit = int(action_input.get("limit", 200))
-    return ToolExecutionResult(ok=True, content=execute_read_only_sql(path, sql, limit=limit))
+    try:
+        content = execute_read_only_sql(path, sql, limit=limit)
+    except Exception as exc:
+        error_payload: dict[str, Any] = {
+            "path": str(path),
+            "sql": sql,
+            "error": str(exc),
+        }
+        lowered = str(exc).casefold()
+        if "no such table" in lowered or "no such column" in lowered:
+            try:
+                error_payload["available_tables"] = list_sqlite_table_names(path)
+            except Exception:
+                pass
+        raise RuntimeError(json.dumps(error_payload, ensure_ascii=False)) from exc
+    return ToolExecutionResult(ok=True, content=content)
 
 
 def _execute_python(task: PublicTask, action_input: dict[str, Any], _: ModelAdapter | None) -> ToolExecutionResult:
@@ -342,7 +357,7 @@ def create_default_tool_registry() -> ToolRegistry:
         ),
         "summarize": ToolSpec(
             name="summarize",
-            description="AOP-style Summarize operator. Condense long context into a shorter summary while preserving key facts. Accepts either raw `text` or a document `path`.",
+            description="Summarize long context into a shorter fact-preserving summary for the next reasoning step. Accepts either raw `text` or a document `path`.",
             input_schema={"path": "doc/knowledge.md", "focus": "key diagnoses and abnormal lab findings", "max_input_chars": 12000},
         ),
     }
