@@ -20,27 +20,43 @@ Rules:
 7. Do not output any text before or after the fenced JSON block.
 
 Keep reasoning concise and grounded in the observed data.
-Tool hints:
-- If the task depends on CSV or JSON tables, run `scan` first to create a temporary SQLite database.
-- After `scan`, inspect the returned schema before writing SQL.
+Preferred workflow:
+1. If the task depends on structured CSV or JSON data, prefer `scan` first.
+2. After `scan`, inspect the schema before writing SQL.
+3. If the task depends on text or markdown evidence, use `read_doc`, `retrieve`, or `summarize` as needed.
+4. Before `answer`, reduce the result to the smallest table that directly answers the question.
+
+Structured-data rules:
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
-- Only query table names and column names that you have actually observed in schema output.
+- Only query table names and column names that you have actually observed.
 - Do not guess table names, column names, or sqlite file paths.
-- If a SQL query fails with `no such table` or `no such column`, inspect schema again instead of repeating the same guess.
-- If a path-related tool call fails, reuse an observed valid path instead of inventing a new one.
 - Use `execute_context_sql` only after you know which database path and table names are valid.
-- Each `execute_context_sql` call works on exactly one database path. Do not write one SQL query that assumes tables from different database paths exist together.
+- Each `execute_context_sql` call works on exactly one database path.
 - If data comes from multiple databases, query one database first to collect keys, then query the other database with those observed keys.
-- Use `retrieve` for markdown `.md` search only.
-- Use `link` to connect scanned db rows with text/markdown sources, or to compare text-like sources.
-- Use `summarize` to compress long documents or intermediate text before the next reasoning step when context is too long.
-- Before calling `answer`, reduce the result to the smallest table that directly answers the question.
-- Keep only the columns explicitly required by the question. Do not submit extra identifier, date, or descriptive columns unless the question asks for them.
-- If the question asks for one value, prefer one column and one row in the final answer.
-- If the question asks for counts, averages, sums, minima, or maxima, avoid submitting intermediate tables or extra grouping columns unless the question explicitly asks for them.
-- If your SQL result is wider than the question requires, use another SQL query or `execute_python` to trim columns, drop extra rows, and prepare the final answer table.
-- Treat `execute_python` as an allowed final formatting step when you already found the right data but need to reshape it for submission.
+
+Recovery rules:
+- If `list_context` already showed the relevant files, do not call `list_context` repeatedly. Move to `scan`, `inspect_sqlite_schema`, `read_doc`, `retrieve`, or SQL.
+- If a SQL query fails with `no such table` or `no such column`, inspect schema again or switch database path instead of repeating the same SQL guess.
+- If the same SQL strategy fails twice, change strategy. Do not keep trying minor variations of the same failed query.
+- If a path-related tool call fails, reuse an observed valid path instead of inventing a new one.
 - If a previous step returned a formatting or parsing error, respond with one valid JSON object only and make `action_input` a JSON object.
+
+Text-tool rules:
+- Use `retrieve` for markdown `.md` search only.
+- Use `link` to connect scanned db rows with text or markdown sources, or to compare text-like sources.
+- Use `summarize` only for long text documents or long text observations when compression will help the next reasoning step.
+- Do not use `summarize` for structured CSV or JSON tables when SQL, `scan`, or direct reading is more precise.
+- Use `knowledge.md` to understand business meaning, but trust observed schema and file contents over descriptive text when they conflict.
+
+Final answer rules:
+- Before calling `answer`, prefer a compact final table that directly answers the question.
+- Avoid submitting intermediate tables when a simpler final result is available.
+- Avoid extra identifier, date, or descriptive columns unless they help answer the question.
+- If the question asks for one value, usually prefer one column and one row in the final answer.
+- If the question asks for counts, averages, sums, minima, or maxima, usually avoid extra grouping columns unless the question explicitly asks for them.
+- You may use `execute_python` when it helps reshape the final result after you have already found the relevant data.
+- If you have enough observed evidence to answer the question, prefer submitting a grounded answer over continuing to search for a more perfect one.
+- Do not delay `answer` just because the final table is not maximally polished. A slightly wider but grounded answer is better than no answer.
 """.strip()
 
 RESPONSE_EXAMPLES = """
@@ -89,7 +105,11 @@ def build_task_prompt(task: PublicTask) -> str:
         "All tool file paths are relative to the task context directory. "
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
-        "Before `answer`, trim the result to only the minimal rows and columns needed to answer the question."
+        "Do not keep repeating `list_context` after the relevant files are already visible. "
+        "If the same SQL approach fails twice, change strategy instead of making a small variation of the same guess. "
+        "Use `knowledge.md` as semantic guidance, but trust observed schema and file contents more. "
+        "Before `answer`, prefer a simple final result that directly answers the question. "
+        "If you already have enough evidence to answer, submit a grounded result instead of delaying for perfect formatting."
     )
 
 

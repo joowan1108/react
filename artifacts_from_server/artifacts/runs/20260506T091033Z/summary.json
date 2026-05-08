@@ -1,0 +1,88 @@
+{
+  "run_id": "20260506T091033Z",
+  "task_count": 10,
+  "succeeded_task_count": 9,
+  "max_workers": 2,
+  "tasks": [
+    {
+      "task_id": "task_11",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_11",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_11/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_11/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_19",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_19",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_19/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_19/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_22",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_22",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_22/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_22/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_24",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_24",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_24/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_24/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_25",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_25",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_25/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_25/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_26",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_26",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_26/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_26/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_27",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_27",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_27/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_27/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_38",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_38",
+      "prediction_csv_path": null,
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_38/trace.json",
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_64",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_64",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_64/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_64/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_67",
+      "task_output_dir": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_67",
+      "prediction_csv_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_67/prediction.csv",
+      "trace_path": "/home/tako/urp/react/artifacts/runs/20260506T091033Z/task_67/trace.json",
+      "succeeded": true,
+      "failure_reason": null
+    }
+  ]
+}
