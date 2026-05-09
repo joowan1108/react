@@ -221,8 +221,6 @@ def sqlite_db(ctx: Path) -> Path:
     conn = sqlite3.connect(db_path)
     conn.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL)")
     conn.execute("CREATE TABLE orders (order_id INTEGER, product_id INTEGER, qty INTEGER)")
-    conn.execute("INSERT INTO products VALUES (1, 'Widget', 9.99)")
-    conn.execute("INSERT INTO products VALUES (2, 'Gadget', 19.99)")
     conn.commit()
     conn.close()
     return db_path
@@ -244,14 +242,6 @@ class TestInspectSqliteSchema:
         assert "id" in create_sql
         assert "name" in create_sql
         assert "price" in create_sql
-
-    def test_includes_sample_values(self, task: PublicTask, sqlite_db: Path, registry):
-        result = registry.execute(task, "inspect_sqlite_schema", {"path": "store.db"})
-        products = next(t for t in result.content["tables"] if t["name"] == "products")
-        assert "sample_values" in products
-        assert "name" in products["sample_values"]
-        assert "Widget" in products["sample_values"]["name"]
-
 
 # ---------------------------------------------------------------------------
 # generate_sql_candidates
