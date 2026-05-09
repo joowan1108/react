@@ -89,14 +89,15 @@ def _build_retrieval_database(task: PublicTask, action_input: dict[str, Any], _:
 def _retrieve(task: PublicTask, action_input: dict[str, Any], _: ModelAdapter | None) -> ToolExecutionResult:
     query = str(action_input["query"])
     top_k = int(action_input.get("top_k", 5))
+    mode = str(action_input.get("mode", "entity"))
     raw_database = action_input.get("database")
     if isinstance(raw_database, dict):
-        content = search_keyword_database(query=query, database=raw_database, top_k=top_k)
+        content = search_keyword_database(query=query, database=raw_database, top_k=top_k, mode=mode)
         return ToolExecutionResult(ok=True, content=content)
 
     raw_sources = action_input.get("sources")
     sources = [str(item) for item in raw_sources] if isinstance(raw_sources, list) else None
-    return ToolExecutionResult(ok=True, content=retrieve_by_keyword(task, query=query, sources=sources, top_k=top_k))
+    return ToolExecutionResult(ok=True, content=retrieve_by_keyword(task, query=query, sources=sources, top_k=top_k, mode=mode))
 
 
 def _scan(task: PublicTask, action_input: dict[str, Any], _: ModelAdapter | None) -> ToolExecutionResult:
@@ -388,8 +389,8 @@ def create_default_tool_registry() -> ToolRegistry:
         ),
         "retrieve": ToolSpec(
             name="retrieve",
-            description="Keyword retrieval over markdown files only. Search .md chunks with a query or a prebuilt markdown database.",
-            input_schema={"query": "APS thrombosis", "sources": ["doc/knowledge.md"], "top_k": 5},
+            description="Keyword retrieval over markdown files only. Use mode `entity` for ID/name lookup and mode `rule` for thresholds, ranges, or clinical/business rules.",
+            input_schema={"query": "APS thrombosis", "sources": ["doc/knowledge.md"], "top_k": 5, "mode": "rule"},
         ),
         "scan": ToolSpec(
             name="scan",

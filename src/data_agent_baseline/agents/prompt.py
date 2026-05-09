@@ -28,6 +28,7 @@ Preferred workflow:
 5. Before `answer`, reduce the result to the smallest table that directly answers the question.
 
 Structured-data rules:
+- Do not repeatedly call `list_context` after the relevant files are already visible. Reuse observed paths and move on.
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
 - Before writing a complex join or multi-condition SQL query, prefer `run_sql_pipeline` instead of issuing repeated direct SQL guesses.
 - If repeated SQL guesses fail, stop guessing and switch into `run_sql_pipeline` instead of issuing more direct `execute_context_sql` calls.
@@ -39,6 +40,7 @@ Structured-data rules:
 - Use `execute_context_sql` only after you know which database path and table names are valid.
 - Each `execute_context_sql` call works on exactly one database path.
 - If data comes from multiple databases, query one database first to collect keys, then query the other database with those observed keys.
+- Use `execute_python` only as a final formatting step after grounded rows are already found. Do not use it for open-ended exploration, SQL planning, or schema discovery.
 
 Recovery rules:
 - Do not repeat the same failed action. Use the latest tool observation to choose a different next step.
@@ -50,6 +52,8 @@ Recovery rules:
 
 Text-tool rules:
 - Use `retrieve` for markdown `.md` search only.
+- Prefer `retrieve` with mode `entity` for ID/name/entity lookup and mode `rule` for thresholds, ranges, or rule extraction.
+- Do not repeat the same low-signal `retrieve` query. If retrieval is weak, switch to `read_doc`, SQL, or another tool.
 - Use `link` to connect scanned db rows with text or markdown sources, or to compare text-like sources.
 - Use `summarize` only for long text documents or long text observations when compression will help the next reasoning step.
 - Do not use `summarize` for structured CSV or JSON tables when SQL, `scan`, or direct reading is more precise.
@@ -60,7 +64,7 @@ Final answer rules:
 - Avoid submitting intermediate tables when a simpler final result is available.
 - Avoid extra identifier, date, or descriptive columns unless they help answer the question.
 - If the question asks for one value, usually prefer one column and one row in the final answer.
-- You may use `execute_python` when it helps reshape the final result after you have already found the relevant data.
+- You may use `execute_python` only when it helps reshape the final result after you have already found the relevant data and only a final formatting step remains.
 """.strip()
 
 RESPONSE_EXAMPLES = """
