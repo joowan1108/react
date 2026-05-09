@@ -374,28 +374,19 @@ def _build_final_shape_hint(question: str, content: dict[str, object]) -> dict[s
         return None
 
     column_count = len(columns)
-    hints: list[str] = []
     expected_shape = None
 
     if _question_expects_single_value(question):
         expected_shape = "prefer 1 column and usually 1 row"
-        if column_count > 1:
-            hints.append("This looks wider than a single-value answer.")
     elif _question_expects_grouping(question):
         expected_shape = "prefer group key column(s) plus one metric column"
-        if column_count > 3:
-            hints.append("This may include extra columns beyond the grouping key and metric.")
     elif not _question_expects_listing(question):
         expected_shape = "prefer only the column(s) explicitly requested by the question"
-        if column_count > 2:
-            hints.append("This may include extra identifier or descriptive columns.")
 
     if expected_shape is None:
         return None
 
     result: dict[str, object] = {"expected_final_shape": expected_shape}
-    if hints:
-        result["final_shape_hint"] = " ".join(hints)
     if isinstance(row_count, int):
         result["observed_shape"] = {"column_count": column_count, "row_count": row_count}
     return result
