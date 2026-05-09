@@ -77,6 +77,31 @@ def _question_expects_grouping(question: str) -> bool:
     return any(marker in f" {lowered} " for marker in grouping_markers)
 
 
+def _question_prefers_narrow_projection(question: str) -> bool:
+    if _question_expects_single_value(question):
+        return True
+    if _question_expects_listing(question):
+        return False
+    if _question_expects_grouping(question):
+        return False
+
+    lowered = question.casefold().strip()
+    narrow_prefixes = (
+        "what is",
+        "what was",
+        "what were",
+        "which is",
+        "which was",
+        "who is",
+        "who was",
+        "when is",
+        "when was",
+        "where is",
+        "where was",
+    )
+    return lowered.startswith(narrow_prefixes)
+
+
 def _extract_sql_table_refs(sql: str) -> list[str]:
     return [match.group(1) for match in TABLE_REF_RE.finditer(sql)]
 
@@ -176,6 +201,7 @@ def _classify_acceptability(*, valid: bool, warnings: list[str], logic_checks: d
         "sql_uses_tables_outside_schema_link_context",
         "result_too_tall_for_single_value_question",
         "result_too_wide_for_single_value_question",
+        "result_too_wide_for_narrow_projection_question",
     }
     if any(item in severe_warning_markers for item in warnings):
         return "weak_accept"
@@ -200,6 +226,7 @@ def _score_candidate(
     score = 0.55
     expects_single_value = _question_expects_single_value(question)
     expects_listing = _question_expects_listing(question)
+    prefers_narrow_projection = _question_prefers_narrow_projection(question)
 
     if row_count == 0:
         score -= 0.25
@@ -225,6 +252,14 @@ def _score_candidate(
             score += 0.08
         elif column_count > 6:
             score -= 0.10
+
+    if prefers_narrow_projection:
+        if column_count == 1:
+            score += 0.12
+        elif column_count == 2:
+            score -= 0.08
+        elif column_count > 2:
+            score -= 0.22
 
     if truncated:
         score -= 0.05
@@ -284,6 +319,9 @@ def verify_sql_candidates(
             elif _question_expects_listing(question):
                 if len(columns) > 5:
                     warnings.append("result_has_many_columns_for_listing_question")
+            elif _question_prefers_narrow_projection(question):
+                if len(columns) > 2:
+                    warnings.append("result_too_wide_for_narrow_projection_question")
 
             warnings.extend(item for item in logic_warnings if item not in warnings)
             score = _score_candidate(

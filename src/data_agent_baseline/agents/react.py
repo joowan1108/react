@@ -335,6 +335,72 @@ def _augment_selected_sql_execution_observation(
     return observation
 
 
+def _question_expects_single_value(question: str) -> bool:
+    lowered = question.casefold()
+    return any(
+        marker in lowered
+        for marker in (
+            "how many",
+            "count",
+            "number of",
+            "average",
+            "avg",
+            "sum",
+            "total",
+            "maximum",
+            "minimum",
+            "highest",
+            "lowest",
+            "max",
+            "min",
+        )
+    )
+
+
+def _question_expects_grouping(question: str) -> bool:
+    lowered = question.casefold()
+    return any(marker in f" {lowered} " for marker in (" for each ", " by ", " per ", " grouped by ", " each "))
+
+
+def _question_expects_listing(question: str) -> bool:
+    lowered = question.casefold()
+    return any(marker in lowered for marker in ("list", "show", "which", "what are", "who are", "give me"))
+
+
+def _build_final_shape_hint(question: str, content: dict[str, object]) -> dict[str, object] | None:
+    columns = content.get("columns")
+    row_count = content.get("row_count")
+    if not isinstance(columns, list):
+        return None
+
+    column_count = len(columns)
+    hints: list[str] = []
+    expected_shape = None
+
+    if _question_expects_single_value(question):
+        expected_shape = "prefer 1 column and usually 1 row"
+        if column_count > 1:
+            hints.append("This looks wider than a single-value answer.")
+    elif _question_expects_grouping(question):
+        expected_shape = "prefer group key column(s) plus one metric column"
+        if column_count > 3:
+            hints.append("This may include extra columns beyond the grouping key and metric.")
+    elif not _question_expects_listing(question):
+        expected_shape = "prefer only the column(s) explicitly requested by the question"
+        if column_count > 2:
+            hints.append("This may include extra identifier or descriptive columns.")
+
+    if expected_shape is None:
+        return None
+
+    result: dict[str, object] = {"expected_final_shape": expected_shape}
+    if hints:
+        result["final_shape_hint"] = " ".join(hints)
+    if isinstance(row_count, int):
+        result["observed_shape"] = {"column_count": column_count, "row_count": row_count}
+    return result
+
+
 def _extract_selected_sql(observation: dict[str, object] | None) -> tuple[str | None, str | None]:
     if not isinstance(observation, dict) or not observation.get("ok"):
         return None, None
@@ -464,6 +530,11 @@ class ReActAgent:
             observation = _augment_pipeline_observation_hint(model_step.action, observation)
             if model_step.action == "execute_context_sql":
                 observation = _augment_selected_sql_execution_observation(previous_observation, observation)
+                content = observation.get("content")
+                if isinstance(content, dict):
+                    final_shape_hint = _build_final_shape_hint(task.question, content)
+                    if isinstance(final_shape_hint, dict):
+                        observation = {**observation, **final_shape_hint}
             step_record = StepRecord(
                 step_index=step_index,
                 thought=model_step.thought,
