@@ -31,8 +31,9 @@ Structured-data rules:
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
 - Before writing a complex join or multi-condition SQL query, prefer `run_sql_pipeline` instead of issuing repeated direct SQL guesses.
 - If repeated SQL guesses fail, stop guessing and switch into `run_sql_pipeline` instead of issuing more direct `execute_context_sql` calls.
-- If `run_sql_pipeline` returns a selected SQL candidate, prefer executing that candidate instead of writing a fresh SQL guess.
-- Use the lower-level SQL tools (`schema_link_sql_context`, `generate_sql_candidates`, `verify_sql_candidates`, `revise_sql_candidates`) only when you need finer-grained control or debugging.
+- If `run_sql_pipeline` returns a selected SQL candidate, execute that exact SQL next.
+- Do not write a fresh SQL query immediately after `run_sql_pipeline` returns `selected_sql` unless executing that selected SQL fails first.
+- Do not run more than one additional SQL pipeline cycle unless the selected SQL execution clearly fails.
 - Only query table names and column names that you have actually observed.
 - Do not guess table names, column names, or sqlite file paths.
 - Use `execute_context_sql` only after you know which database path and table names are valid.
@@ -78,34 +79,19 @@ Example response after scanning structured data:
 {"thought":"I should inspect the schema before writing SQL so I use valid table names.","action":"inspect_sqlite_schema","action_input":{"path":"/tmp/scanned.sqlite"}}
 ```
 
-Example response for schema linking before a complex join:
-```json
-{"thought":"This SQL looks complex, so I should identify likely tables, joins, and value filters before generating candidates.","action":"schema_link_sql_context","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?"}}
-```
-
 Example response for the higher-level SQL pipeline:
 ```json
 {"thought":"This SQL looks complex, so I should use the SQL pipeline to get a verified candidate before executing final SQL.","action":"run_sql_pipeline","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","num_candidates":3,"revision_rounds":1}}
 ```
 
+Example response immediately after the SQL pipeline returns `selected_sql`:
+```json
+{"thought":"The SQL pipeline already selected a candidate, so I should execute that exact SQL next.","action":"execute_context_sql","action_input":{"path":"/tmp/scanned.sqlite","sql":"SELECT COUNT(*) FROM hero_power hp JOIN superhero s ON hp.hero_id = s.id JOIN superpower p ON hp.power_id = p.id WHERE p.power_name = 'Super Strength' AND s.height_cm > 200","limit":200}}
+```
+
 Example response when you need to reshape an intermediate result before answering:
 ```json
 {"thought":"I found the relevant records, but I should trim the result down to only the required final columns before submitting.","action":"execute_python","action_input":{"code":"print('final formatting step placeholder')"}}
-```
-
-Example response for difficult SQL generation:
-```json
-{"thought":"This join looks non-trivial, so I should draft a few grounded SQL candidates first.","action":"generate_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","num_candidates":3}}
-```
-
-Example response for candidate verification:
-```json
-{"thought":"I should compare these SQL candidates before choosing the final one to execute.","action":"verify_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","candidates":[{"sql":"SELECT COUNT(*) FROM hero_power hp JOIN superhero s ON hp.hero_id = s.id JOIN superpower p ON hp.power_id = p.id WHERE p.power_name = 'Super Strength' AND s.height_cm > 200","rationale":"explicit join candidate"},{"sql":"SELECT * FROM hero_power hp JOIN superhero s ON hp.hero_id = s.id JOIN superpower p ON hp.power_id = p.id WHERE p.power_name = 'Super Strength' AND s.height_cm > 200","rationale":"wide join candidate"}]}}
-```
-
-Example response for revising weak SQL candidates:
-```json
-{"thought":"The previous candidates were weak, so I should revise them using the verification feedback.","action":"revise_sql_candidates","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","verification_result":{"candidate_index":1,"warnings":["result_too_wide_for_single_value_question"],"errors":[]}}}
 ```
 
 Example response when you have the final answer:
@@ -135,7 +121,9 @@ def build_task_prompt(task: PublicTask) -> str:
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
         "If the SQL looks difficult, prefer `run_sql_pipeline` before executing final SQL. "
         "If direct SQL guesses fail more than once, stop guessing and switch to `run_sql_pipeline` before writing more SQL. "
-        "If the pipeline returns a selected SQL candidate, prefer executing that candidate instead of writing a fresh SQL guess. "
+        "If the pipeline returns a selected SQL candidate, execute that exact SQL next instead of writing a fresh SQL guess. "
+        "Do not start another SQL planning step immediately after the pipeline returns selected_sql unless executing that selected SQL fails first. "
+        "Do not run more than one additional SQL pipeline cycle unless the selected SQL execution clearly fails. "
         "Use `knowledge.md` as semantic guidance, but trust observed schema and file contents more. "
         "Before `answer`, prefer a simple final result that directly answers the question."
     )

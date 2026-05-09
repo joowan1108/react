@@ -197,6 +197,32 @@ def _augment_pipeline_observation_hint(action: str, observation: dict[str, objec
     if not observation.get("ok"):
         return observation
 
+    if action == "run_sql_pipeline":
+        content = observation.get("content")
+        if not isinstance(content, dict):
+            return observation
+
+        selected_sql = content.get("selected_sql")
+        selected_acceptability = str(content.get("selected_acceptability") or "")
+        recommended_next_action = str(content.get("recommended_next_action") or "")
+
+        updated = dict(observation)
+        if isinstance(selected_sql, str) and selected_sql.strip():
+            updated["retry_hint"] = (
+                "The SQL pipeline already selected a candidate. Prefer executing that SQL next instead of starting a new SQL planning loop."
+            )
+            updated["suggested_next_actions"] = ["execute_context_sql"]
+            return updated
+
+        if selected_acceptability == "reject" or recommended_next_action == "run_sql_pipeline":
+            updated["retry_hint"] = (
+                "The SQL pipeline did not produce an acceptable candidate. Inspect the schema or change strategy before trying another direct SQL guess."
+            )
+            updated["suggested_next_actions"] = ["inspect_sqlite_schema", "run_sql_pipeline"]
+            return updated
+
+        return observation
+
     if action == "verify_sql_candidates":
         content = observation.get("content")
         if not isinstance(content, dict):
@@ -223,20 +249,109 @@ def _augment_pipeline_observation_hint(action: str, observation: dict[str, objec
         updated = dict(observation)
         if acceptability == "reject":
             updated["retry_hint"] = (
-                "The best SQL candidate is still rejected. Prefer revising the candidates or rerunning the SQL pipeline instead of executing more direct SQL guesses."
+                "The best SQL candidate is still rejected. Prefer rerunning the SQL pipeline instead of executing more direct SQL guesses."
             )
-            updated["suggested_next_actions"] = ["revise_sql_candidates", "run_sql_pipeline"]
+            updated["suggested_next_actions"] = ["run_sql_pipeline"]
         elif acceptability == "weak_accept" or warning_list:
             updated["retry_hint"] = (
-                "The best SQL candidate is only weakly acceptable. Prefer revising it or rerunning the SQL pipeline before falling back to another fresh SQL guess."
+                "The best SQL candidate is only weakly acceptable. Prefer rerunning the SQL pipeline before falling back to another fresh SQL guess."
             )
-            updated["suggested_next_actions"] = ["revise_sql_candidates", "run_sql_pipeline", "execute_context_sql"]
+            updated["suggested_next_actions"] = ["run_sql_pipeline", "execute_context_sql"]
         else:
             updated["retry_hint"] = (
                 "The best verified candidate looks acceptable. Prefer executing that candidate "
                 "instead of writing a fresh SQL guess."
             )
             updated["suggested_next_actions"] = ["execute_context_sql"]
+        return updated
+
+    return observation
+
+
+def _extract_selected_sql_from_pipeline_observation(
+    observation: dict[str, object],
+) -> tuple[str | None, str | None]:
+    if not observation.get("ok"):
+        return None, None
+    if observation.get("tool") != "run_sql_pipeline":
+        return None, None
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return None, None
+    selected_sql = content.get("selected_sql")
+    path = content.get("path")
+    if not isinstance(selected_sql, str) or not selected_sql.strip():
+        return None, None
+    return str(path) if path is not None else None, selected_sql.strip()
+
+
+def _build_pipeline_execution_guard_observation(
+    *,
+    expected_path: str | None,
+    expected_sql: str,
+) -> dict[str, object]:
+    content: dict[str, object] = {
+        "ok": False,
+        "error_type": "pipeline_execution_guard",
+        "retry_hint": (
+            "The previous SQL pipeline already selected a SQL candidate. "
+            "Execute that exact SQL next instead of starting a new planning step or writing a fresh SQL guess."
+        ),
+        "suggested_next_actions": ["execute_context_sql"],
+        "selected_sql": expected_sql,
+    }
+    if expected_path is not None:
+        content["selected_path"] = expected_path
+    return content
+
+
+def _augment_selected_sql_execution_observation(
+    previous_observation: dict[str, object] | None,
+    observation: dict[str, object],
+) -> dict[str, object]:
+    if not previous_observation:
+        return observation
+
+    expected_path, expected_sql = _extract_selected_sql_from_pipeline_observation(previous_observation)
+    if expected_sql is None:
+        return observation
+
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return observation
+
+    row_count = content.get("row_count")
+    truncated = bool(content.get("truncated"))
+    updated = dict(observation)
+
+    if isinstance(row_count, int) and row_count > 0 and not truncated:
+        updated["retry_hint"] = (
+            "The selected SQL executed successfully and returned non-empty results. "
+            "Prefer answering next unless you only need a small final reshaping step."
+        )
+        updated["suggested_next_actions"] = ["answer", "execute_python"]
+        updated["selected_sql_executed"] = True
+        updated["ready_to_answer_if_grounded"] = True
+        if expected_path is not None:
+            updated["selected_path"] = expected_path
+        updated["selected_sql"] = expected_sql
+        return updated
+
+    if isinstance(row_count, int) and row_count == 0:
+        updated["retry_hint"] = (
+            "The selected SQL executed but returned no rows. Prefer inspecting schema or rerunning the SQL pipeline "
+            "instead of drifting into repeated direct SQL guesses."
+        )
+        updated["suggested_next_actions"] = ["inspect_sqlite_schema", "run_sql_pipeline"]
+        updated["selected_sql_executed"] = True
+        return updated
+
+    if truncated:
+        updated["retry_hint"] = (
+            "The selected SQL executed but returned a truncated result. Prefer answering only after narrowing to the final shape."
+        )
+        updated["suggested_next_actions"] = ["execute_python", "answer"]
+        updated["selected_sql_executed"] = True
         return updated
 
     return observation
@@ -307,6 +422,7 @@ class ReActAgent:
         state.steps.extend(self._build_initial_context_steps(task))
         for step_index in range(1, self.config.max_steps + 1):
             raw_response = self.model.complete(self._build_messages(task, state))
+            previous_observation = state.steps[-1].observation if state.steps else None
             try:
                 model_step = parse_model_step(raw_response)
             except Exception as exc:
@@ -323,6 +439,57 @@ class ReActAgent:
                     )
                 )
                 continue
+
+            if state.steps:
+                expected_path, expected_sql = _extract_selected_sql_from_pipeline_observation(previous_observation)
+                if expected_sql is not None:
+                    selected_path = expected_path
+                    if model_step.action != "execute_context_sql":
+                        observation = _build_pipeline_execution_guard_observation(
+                            expected_path=selected_path,
+                            expected_sql=expected_sql,
+                        )
+                        state.steps.append(
+                            StepRecord(
+                                step_index=step_index,
+                                thought=model_step.thought,
+                                action=model_step.action,
+                                action_input=model_step.action_input,
+                                raw_response=raw_response,
+                                observation=observation,
+                                ok=False,
+                            )
+                        )
+                        continue
+
+                    submitted_sql = model_step.action_input.get("sql")
+                    submitted_path = model_step.action_input.get("path")
+                    normalized_submitted_sql = str(submitted_sql).strip() if submitted_sql is not None else ""
+                    normalized_expected_sql = expected_sql.strip()
+                    normalized_submitted_path = (
+                        str(submitted_path).strip() if submitted_path is not None else ""
+                    )
+                    normalized_expected_path = selected_path.strip() if selected_path is not None else ""
+
+                    if normalized_submitted_sql != normalized_expected_sql or (
+                        normalized_expected_path and normalized_submitted_path != normalized_expected_path
+                    ):
+                        observation = _build_pipeline_execution_guard_observation(
+                            expected_path=selected_path,
+                            expected_sql=expected_sql,
+                        )
+                        state.steps.append(
+                            StepRecord(
+                                step_index=step_index,
+                                thought=model_step.thought,
+                                action=model_step.action,
+                                action_input=model_step.action_input,
+                                raw_response=raw_response,
+                                observation=observation,
+                                ok=False,
+                            )
+                        )
+                        continue
 
             try:
                 tool_result = self.tools.execute(
@@ -353,6 +520,8 @@ class ReActAgent:
                 "content": tool_result.content,
             }
             observation = _augment_pipeline_observation_hint(model_step.action, observation)
+            if model_step.action == "execute_context_sql":
+                observation = _augment_selected_sql_execution_observation(previous_observation, observation)
             step_record = StepRecord(
                 step_index=step_index,
                 thought=model_step.thought,
