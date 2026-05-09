@@ -304,6 +304,68 @@ def _augment_pipeline_observation_hint(action: str, observation: dict[str, objec
     return observation
 
 
+def _summarize_run_sql_pipeline_content(content: dict[str, object]) -> dict[str, object]:
+    summary: dict[str, object] = {
+        "path": content.get("path"),
+        "selected_sql": content.get("selected_sql"),
+        "selected_acceptability": content.get("selected_acceptability"),
+        "recommended_next_action": content.get("recommended_next_action"),
+    }
+
+    link_context = content.get("schema_link_context")
+    if isinstance(link_context, dict):
+        summary["schema_link_summary"] = {
+            "relevant_tables": link_context.get("relevant_tables", []),
+            "join_hint_count": len(link_context.get("join_hints", []))
+            if isinstance(link_context.get("join_hints"), list)
+            else 0,
+            "value_hint_count": len(link_context.get("value_hints", []))
+            if isinstance(link_context.get("value_hints"), list)
+            else 0,
+            "warnings": link_context.get("warnings", []),
+        }
+
+    final_verification = content.get("final_verification")
+    if isinstance(final_verification, dict):
+        verification_summary: dict[str, object] = {
+            "best_candidate_index": final_verification.get("best_candidate_index"),
+            "best_candidate_acceptability": final_verification.get("best_candidate_acceptability"),
+            "best_candidate_sql": final_verification.get("best_candidate_sql"),
+        }
+        results = final_verification.get("results")
+        if isinstance(results, list):
+            verification_summary["candidate_count"] = len(results)
+            best_index = final_verification.get("best_candidate_index")
+            if isinstance(best_index, int):
+                for result in results:
+                    if isinstance(result, dict) and int(result.get("candidate_index", -1)) == best_index:
+                        verification_summary["best_candidate_warnings"] = result.get("warnings", [])
+                        verification_summary["best_candidate_errors"] = result.get("errors", [])
+                        verification_summary["best_candidate_score"] = result.get("score")
+                        break
+        summary["verification_summary"] = verification_summary
+
+    revisions = content.get("revisions")
+    if isinstance(revisions, list):
+        summary["revision_count"] = len(revisions)
+
+    return summary
+
+
+def _slim_success_observation(action: str, observation: dict[str, object]) -> dict[str, object]:
+    if not observation.get("ok"):
+        return observation
+
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return observation
+
+    updated = dict(observation)
+    if action == "run_sql_pipeline":
+        updated["content"] = _summarize_run_sql_pipeline_content(content)
+    return updated
+
+
 def _extract_selected_sql_from_pipeline_observation(
     observation: dict[str, object],
 ) -> tuple[str | None, str | None]:
@@ -406,6 +468,19 @@ def _build_repeated_retrieve_guard_observation(*, low_signal: bool) -> dict[str,
     }
 
 
+def _build_answer_convergence_guard_observation() -> dict[str, object]:
+    return {
+        "ok": False,
+        "error_type": "answer_convergence_guard",
+        "error": "A grounded final result is already available and the agent must converge to answer.",
+        "retry_hint": (
+            "Do not restart exploration. You already have a grounded result from the selected SQL. "
+            "Call answer next, or use execute_python only for one final compact reshaping step immediately before answer."
+        ),
+        "suggested_next_actions": ["answer", "execute_python"],
+    }
+
+
 def _is_final_formatting_ready(state: AgentRuntimeState) -> bool:
     recent_steps = [
         step
@@ -438,6 +513,27 @@ def _is_final_formatting_ready(state: AgentRuntimeState) -> bool:
         return False
 
     return successful_answer_like_source
+
+
+def _must_converge_to_answer(state: AgentRuntimeState) -> bool:
+    recent_steps = state.steps[-3:]
+    if not recent_steps:
+        return False
+
+    selected_sql_ready = False
+    successful_python_after_ready = 0
+
+    for step in recent_steps:
+        obs = step.observation if isinstance(step.observation, dict) else {}
+        if bool(obs.get("ready_to_answer_if_grounded")):
+            selected_sql_ready = True
+        if selected_sql_ready and step.action == "execute_python" and step.ok:
+            successful_python_after_ready += 1
+
+    if not selected_sql_ready:
+        return False
+
+    return successful_python_after_ready <= 1
 
 
 def _should_block_retrieve(state: AgentRuntimeState, action_input: dict[str, object]) -> tuple[bool, bool]:
@@ -510,7 +606,7 @@ def _augment_selected_sql_execution_observation(
     if isinstance(row_count, int) and row_count > 0 and not truncated:
         updated["retry_hint"] = (
             "The selected SQL executed successfully and returned non-empty results. "
-            "Prefer answering next unless you only need a small final reshaping step."
+            "Answer next unless you only need one very small final reshaping step."
         )
         updated["suggested_next_actions"] = ["answer", "execute_python"]
         updated["selected_sql_executed"] = True
@@ -677,6 +773,21 @@ class ReActAgent:
                     )
                     continue
 
+            if _must_converge_to_answer(state) and model_step.action not in {"answer", "execute_python"}:
+                observation = _build_answer_convergence_guard_observation()
+                state.steps.append(
+                    StepRecord(
+                        step_index=step_index,
+                        thought=model_step.thought,
+                        action=model_step.action,
+                        action_input=model_step.action_input,
+                        raw_response=raw_response,
+                        observation=observation,
+                        ok=False,
+                    )
+                )
+                continue
+
             if state.steps:
                 expected_path, expected_sql = _extract_selected_sql_from_pipeline_observation(previous_observation)
                 if expected_sql is not None:
@@ -756,6 +867,7 @@ class ReActAgent:
                 "tool": model_step.action,
                 "content": tool_result.content,
             }
+            observation = _slim_success_observation(model_step.action, observation)
             observation = _augment_pipeline_observation_hint(model_step.action, observation)
             if model_step.action == "execute_context_sql":
                 observation = _augment_selected_sql_execution_observation(previous_observation, observation)

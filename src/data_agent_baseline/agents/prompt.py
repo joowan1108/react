@@ -35,6 +35,7 @@ Structured-data rules:
 - If `run_sql_pipeline` returns a selected SQL candidate, execute that exact SQL next.
 - Do not write a fresh SQL query immediately after `run_sql_pipeline` returns `selected_sql` unless executing that selected SQL fails first.
 - Do not run more than one additional SQL pipeline cycle unless the selected SQL execution clearly fails.
+- After the selected SQL executes successfully and returns grounded non-empty rows, converge to `answer` immediately unless one tiny final formatting step is still needed.
 - Only query table names and column names that you have actually observed.
 - Do not guess table names, column names, or sqlite file paths.
 - Use `execute_context_sql` only after you know which database path and table names are valid.
@@ -128,6 +129,7 @@ def build_task_prompt(task: PublicTask) -> str:
         "If the pipeline returns a selected SQL candidate, execute that exact SQL next instead of writing a fresh SQL guess. "
         "Do not start another SQL planning step immediately after the pipeline returns selected_sql unless executing that selected SQL fails first. "
         "Do not run more than one additional SQL pipeline cycle unless the selected SQL execution clearly fails. "
+        "If the selected SQL executes successfully and returns grounded non-empty rows, converge to answer immediately unless one tiny final formatting step is still needed. "
         "Use `knowledge.md` as semantic guidance, but trust observed schema and file contents more. "
         "Before `answer`, prefer a simple final result that directly answers the question."
     )
