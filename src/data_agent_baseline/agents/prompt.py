@@ -32,29 +32,29 @@ Structured-data rules:
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
 - Before writing a complex join or multi-condition SQL query, prefer `run_sql_pipeline` instead of issuing repeated direct SQL guesses.
 - If repeated SQL guesses fail, stop guessing and switch into `run_sql_pipeline` instead of issuing more direct `execute_context_sql` calls.
-- If `run_sql_pipeline` returns a selected SQL candidate, execute that exact SQL next.
-- Do not write a fresh SQL query immediately after `run_sql_pipeline` returns `selected_sql` unless executing that selected SQL fails first.
-- Do not run more than one additional SQL pipeline cycle unless the selected SQL execution clearly fails.
-- After the selected SQL executes successfully and returns grounded non-empty rows, converge to `answer` immediately unless one tiny final formatting step is still needed.
+- If `run_sql_pipeline` returns a selected SQL candidate, prefer executing that SQL next.
+- Avoid writing a fresh SQL query immediately after `run_sql_pipeline` returns `selected_sql` unless executing that selected SQL clearly fails first.
+- Prefer not to run many SQL pipeline cycles in a row unless the selected SQL execution clearly fails.
+- After the selected SQL executes successfully and returns grounded non-empty rows, prefer moving to `answer` unless one tiny final formatting step is still needed.
 - Only query table names and column names that you have actually observed.
 - Do not guess table names, column names, or sqlite file paths.
 - Use `execute_context_sql` only after you know which database path and table names are valid.
 - Each `execute_context_sql` call works on exactly one database path.
 - If data comes from multiple databases, query one database first to collect keys, then query the other database with those observed keys.
-- Use `execute_python` only as a final formatting step after grounded rows are already found. Do not use it for open-ended exploration, SQL planning, or schema discovery.
+- Use `execute_python` mainly as a final formatting step after grounded rows are already found. Avoid using it for open-ended exploration, SQL planning, or schema discovery.
 
 Recovery rules:
 - Do not repeat the same failed action. Use the latest tool observation to choose a different next step.
 - If a SQL query fails, inspect schema or switch database path instead of repeating the same SQL guess.
 - After repeated SQL failures, use `run_sql_pipeline` instead of another direct SQL guess.
-- If `run_sql_pipeline` or `verify_sql_candidates` marks a candidate as weak or rejected, revise or rerun the pipeline instead of writing a fresh direct SQL guess.
+- If `run_sql_pipeline` marks a candidate as weak or rejected, prefer revising your plan, inspecting schema, or rerunning the pipeline instead of immediately writing another fresh direct SQL guess.
 - If a path-related tool call fails, reuse an observed valid path instead of inventing a new one.
 - If a previous step returned a formatting or parsing error, respond with one valid JSON object only and make `action_input` a JSON object.
 
 Text-tool rules:
 - Use `retrieve` for markdown `.md` search only.
 - Prefer `retrieve` with mode `entity` for ID/name/entity lookup and mode `rule` for thresholds, ranges, or rule extraction.
-- Do not repeat the same low-signal `retrieve` query. If retrieval is weak, switch to `read_doc`, SQL, or another tool.
+- Avoid repeating the same low-signal `retrieve` query. If retrieval is weak, switch to `read_doc`, SQL, or another tool.
 - Use `link` to connect scanned db rows with text or markdown sources, or to compare text-like sources.
 - Use `summarize` only for long text documents or long text observations when compression will help the next reasoning step.
 - Do not use `summarize` for structured CSV or JSON tables when SQL, `scan`, or direct reading is more precise.
@@ -126,10 +126,10 @@ def build_task_prompt(task: PublicTask) -> str:
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
         "If the SQL looks difficult, prefer `run_sql_pipeline` before executing final SQL. "
         "If direct SQL guesses fail more than once, stop guessing and switch to `run_sql_pipeline` before writing more SQL. "
-        "If the pipeline returns a selected SQL candidate, execute that exact SQL next instead of writing a fresh SQL guess. "
-        "Do not start another SQL planning step immediately after the pipeline returns selected_sql unless executing that selected SQL fails first. "
-        "Do not run more than one additional SQL pipeline cycle unless the selected SQL execution clearly fails. "
-        "If the selected SQL executes successfully and returns grounded non-empty rows, converge to answer immediately unless one tiny final formatting step is still needed. "
+        "If the pipeline returns a selected SQL candidate, prefer executing that SQL next instead of writing a fresh SQL guess. "
+        "Avoid starting another SQL planning step immediately after the pipeline returns selected_sql unless executing that selected SQL fails first. "
+        "Prefer not to run many SQL pipeline cycles unless the selected SQL execution clearly fails. "
+        "If the selected SQL executes successfully and returns grounded non-empty rows, prefer converging to answer unless one tiny final formatting step is still needed. "
         "Use `knowledge.md` as semantic guidance, but trust observed schema and file contents more. "
         "Before `answer`, prefer a simple final result that directly answers the question."
     )

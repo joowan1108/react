@@ -146,89 +146,6 @@ def _build_tool_error_observation(exc: Exception, action: str) -> dict[str, obje
     return observation
 
 
-def _extract_recovery_signature(observation: dict[str, object]) -> tuple[str | None, str | None, str | None]:
-    if observation.get("error_type") != "tool_error":
-        return None, None, None
-
-    tool = str(observation.get("tool") or "")
-    error_text = str(observation.get("error") or "")
-    normalized_error = error_text.casefold()
-
-    error_kind = None
-    if "no such table" in normalized_error:
-        error_kind = "no_such_table"
-    elif "no such column" in normalized_error:
-        error_kind = "no_such_column"
-    elif "missing sqlite asset" in normalized_error:
-        error_kind = "missing_sqlite_asset"
-    elif "path escapes context dir" in normalized_error:
-        error_kind = "path_escape"
-    elif "missing context asset" in normalized_error:
-        error_kind = "missing_context_asset"
-
-    db_path = None
-    try:
-        payload = json.loads(error_text)
-        if isinstance(payload, dict):
-            raw_path = payload.get("path")
-            if raw_path is not None:
-                db_path = str(raw_path)
-            if error_kind is None:
-                payload_error = str(payload.get("error") or "").casefold()
-                if "no such table" in payload_error:
-                    error_kind = "no_such_table"
-                elif "no such column" in payload_error:
-                    error_kind = "no_such_column"
-    except Exception:
-        pass
-
-    return tool or None, db_path, error_kind
-
-
-def _augment_repeated_tool_error_hint(state: AgentRuntimeState, observation: dict[str, object]) -> dict[str, object]:
-    tool, db_path, error_kind = _extract_recovery_signature(observation)
-    if tool is None or error_kind is None:
-        return observation
-
-    repeat_count = 1
-    for previous_step in reversed(state.steps[-4:]):
-        prev_obs = previous_step.observation
-        if not isinstance(prev_obs, dict):
-            continue
-        prev_tool, prev_db_path, prev_error_kind = _extract_recovery_signature(prev_obs)
-        if prev_tool == tool and prev_error_kind == error_kind and prev_db_path == db_path:
-            repeat_count += 1
-
-    if repeat_count < 2:
-        return observation
-
-    updated = dict(observation)
-    updated["repeat_error"] = True
-    updated["repeat_count"] = repeat_count
-
-    if tool == "execute_context_sql" and error_kind in {"no_such_table", "no_such_column"}:
-        updated["retry_hint"] = (
-            "Stop repeating the same SQL guess. Prefer the higher-level SQL pipeline before making another direct SQL attempt."
-        )
-        updated["suggested_next_actions"] = [
-            "inspect_sqlite_schema",
-            "run_sql_pipeline",
-        ]
-    elif tool == "execute_context_sql" and error_kind in {"missing_sqlite_asset", "path_escape"}:
-        updated["retry_hint"] = (
-            "Stop reusing the invalid database path. Choose a path that was previously observed "
-            "from scan output, inspect_sqlite_schema output, or list_context."
-        )
-        updated["suggested_next_actions"] = ["list_context", "inspect_sqlite_schema"]
-    elif error_kind == "missing_context_asset":
-        updated["retry_hint"] = (
-            "Stop guessing file paths. Use list_context and then copy an exact observed path."
-        )
-        updated["suggested_next_actions"] = ["list_context"]
-
-    return updated
-
-
 def _augment_pipeline_observation_hint(action: str, observation: dict[str, object]) -> dict[str, object]:
     if not observation.get("ok"):
         return observation
@@ -366,224 +283,6 @@ def _slim_success_observation(action: str, observation: dict[str, object]) -> di
     return updated
 
 
-def _extract_selected_sql_from_pipeline_observation(
-    observation: dict[str, object],
-) -> tuple[str | None, str | None]:
-    if not observation.get("ok"):
-        return None, None
-    if observation.get("tool") != "run_sql_pipeline":
-        return None, None
-    content = observation.get("content")
-    if not isinstance(content, dict):
-        return None, None
-    selected_sql = content.get("selected_sql")
-    path = content.get("path")
-    if not isinstance(selected_sql, str) or not selected_sql.strip():
-        return None, None
-    return str(path) if path is not None else None, selected_sql.strip()
-
-
-def _build_pipeline_execution_guard_observation(
-    *,
-    expected_path: str | None,
-    expected_sql: str,
-) -> dict[str, object]:
-    content: dict[str, object] = {
-        "ok": False,
-        "error_type": "pipeline_execution_guard",
-        "retry_hint": (
-            "The previous SQL pipeline already selected a SQL candidate. "
-            "Execute that exact SQL next instead of starting a new planning step or writing a fresh SQL guess."
-        ),
-        "suggested_next_actions": ["execute_context_sql"],
-        "selected_sql": expected_sql,
-    }
-    if expected_path is not None:
-        content["selected_path"] = expected_path
-    return content
-
-
-def _build_repeated_list_context_guard_observation() -> dict[str, object]:
-    return {
-        "ok": False,
-        "error_type": "repeated_list_context_guard",
-        "error": "Repeated list_context calls are blocked because the available paths were already shown.",
-        "retry_hint": (
-            "Do not call list_context again right now. Reuse the previously observed paths and move to a more informative next step "
-            "such as scan, inspect_sqlite_schema, read_doc, read_csv, read_json, retrieve, or run_sql_pipeline."
-        ),
-        "suggested_next_actions": [
-            "scan",
-            "inspect_sqlite_schema",
-            "read_doc",
-            "read_csv",
-            "read_json",
-            "retrieve",
-            "run_sql_pipeline",
-        ],
-    }
-
-
-def _build_execute_python_formatting_guard_observation() -> dict[str, object]:
-    return {
-        "ok": False,
-        "error_type": "execute_python_formatting_guard",
-        "error": "execute_python is reserved for final result formatting after the relevant data has already been found.",
-        "retry_hint": (
-            "Do not use execute_python for open-ended exploration or SQL planning. "
-            "Use scan, inspect_sqlite_schema, read_doc, retrieve, run_sql_pipeline, or execute_context_sql first. "
-            "Only use execute_python after you already have grounded result rows and only final reshaping remains."
-        ),
-        "suggested_next_actions": [
-            "scan",
-            "inspect_sqlite_schema",
-            "read_doc",
-            "retrieve",
-            "run_sql_pipeline",
-            "execute_context_sql",
-        ],
-    }
-
-
-def _build_repeated_retrieve_guard_observation(*, low_signal: bool) -> dict[str, object]:
-    retry_hint = (
-        "Repeated retrieve calls are blocked because they are no longer adding useful evidence. "
-        "Reuse the best retrieved snippets you already have and move to read_doc, run_sql_pipeline, execute_context_sql, or answer."
-    )
-    if low_signal:
-        retry_hint = (
-            "Repeated low-signal retrieve calls are blocked. The current retrieval results are weak, so change strategy instead of searching markdown again."
-        )
-    return {
-        "ok": False,
-        "error_type": "repeated_retrieve_guard",
-        "error": "Repeated retrieve calls are blocked.",
-        "retry_hint": retry_hint,
-        "suggested_next_actions": [
-            "read_doc",
-            "run_sql_pipeline",
-            "execute_context_sql",
-            "answer",
-        ],
-    }
-
-
-def _build_answer_convergence_guard_observation() -> dict[str, object]:
-    return {
-        "ok": False,
-        "error_type": "answer_convergence_guard",
-        "error": "A grounded final result is already available and the agent must converge to answer.",
-        "retry_hint": (
-            "Do not restart exploration. You already have a grounded result from the selected SQL. "
-            "Call answer next, or use execute_python only for one final compact reshaping step immediately before answer."
-        ),
-        "suggested_next_actions": ["answer", "execute_python"],
-    }
-
-
-def _is_final_formatting_ready(state: AgentRuntimeState) -> bool:
-    recent_steps = [
-        step
-        for step in state.steps[-6:]
-        if step.action and not step.action.startswith("__")
-    ]
-    if not recent_steps:
-        return False
-
-    successful_answer_like_source = False
-    successful_python_count = 0
-
-    for step in recent_steps:
-        if step.action == "execute_python" and step.ok:
-            successful_python_count += 1
-
-        observation = step.observation if isinstance(step.observation, dict) else {}
-        content = observation.get("content")
-        if not step.ok or not isinstance(content, dict):
-            continue
-
-        if step.action == "execute_context_sql":
-            row_count = content.get("row_count")
-            if isinstance(row_count, int) and row_count >= 0:
-                successful_answer_like_source = True
-        elif step.action in {"read_csv", "read_json", "read_doc", "retrieve", "run_sql_pipeline"}:
-            successful_answer_like_source = True
-
-    if successful_python_count >= 1:
-        return False
-
-    return successful_answer_like_source
-
-
-def _must_converge_to_answer(state: AgentRuntimeState) -> bool:
-    recent_steps = state.steps[-3:]
-    if not recent_steps:
-        return False
-
-    selected_sql_ready = False
-    successful_python_after_ready = 0
-
-    for step in recent_steps:
-        obs = step.observation if isinstance(step.observation, dict) else {}
-        if bool(obs.get("ready_to_answer_if_grounded")):
-            selected_sql_ready = True
-        if selected_sql_ready and step.action == "execute_python" and step.ok:
-            successful_python_after_ready += 1
-
-    if not selected_sql_ready:
-        return False
-
-    return successful_python_after_ready <= 1
-
-
-def _should_block_retrieve(state: AgentRuntimeState, action_input: dict[str, object]) -> tuple[bool, bool]:
-    recent_steps = [
-        step
-        for step in state.steps[-5:]
-        if step.action and not step.action.startswith("__")
-    ]
-    if not recent_steps:
-        return False, False
-
-    current_query = str(action_input.get("query") or "").strip().casefold()
-    current_mode = str(action_input.get("mode") or "entity").strip().casefold()
-    current_sources = action_input.get("sources")
-    normalized_sources = (
-        tuple(str(item) for item in current_sources)
-        if isinstance(current_sources, list)
-        else None
-    )
-
-    repeated_same_retrieve = 0
-    repeated_low_signal = 0
-    for step in recent_steps:
-        if step.action != "retrieve":
-            continue
-        previous_query = str(step.action_input.get("query") or "").strip().casefold()
-        previous_mode = str(step.action_input.get("mode") or "entity").strip().casefold()
-        previous_sources = step.action_input.get("sources")
-        normalized_previous_sources = (
-            tuple(str(item) for item in previous_sources)
-            if isinstance(previous_sources, list)
-            else None
-        )
-
-        if (
-            previous_query == current_query
-            and previous_mode == current_mode
-            and normalized_previous_sources == normalized_sources
-        ):
-            repeated_same_retrieve += 1
-            obs = step.observation if isinstance(step.observation, dict) else {}
-            content = obs.get("content")
-            if isinstance(content, dict) and bool(content.get("low_signal")):
-                repeated_low_signal += 1
-
-    if repeated_same_retrieve >= 2:
-        return True, repeated_low_signal >= 1
-    return False, False
-
-
 def _augment_selected_sql_execution_observation(
     previous_observation: dict[str, object] | None,
     observation: dict[str, object],
@@ -591,7 +290,7 @@ def _augment_selected_sql_execution_observation(
     if not previous_observation:
         return observation
 
-    expected_path, expected_sql = _extract_selected_sql_from_pipeline_observation(previous_observation)
+    expected_path, expected_sql = _extract_selected_sql(previous_observation)
     if expected_sql is None:
         return observation
 
@@ -634,6 +333,21 @@ def _augment_selected_sql_execution_observation(
         return updated
 
     return observation
+
+
+def _extract_selected_sql(observation: dict[str, object] | None) -> tuple[str | None, str | None]:
+    if not isinstance(observation, dict) or not observation.get("ok"):
+        return None, None
+    if observation.get("tool") != "run_sql_pipeline":
+        return None, None
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return None, None
+    selected_sql = content.get("selected_sql")
+    path = content.get("path")
+    if not isinstance(selected_sql, str) or not selected_sql.strip():
+        return None, None
+    return str(path) if path is not None else None, selected_sql.strip()
 
 
 class ReActAgent:
@@ -719,126 +433,6 @@ class ReActAgent:
                 )
                 continue
 
-            if model_step.action == "list_context":
-                recent_actions = [
-                    step.action
-                    for step in state.steps[-3:]
-                    if step.action and not step.action.startswith("__")
-                ]
-                list_context_count = sum(1 for action in recent_actions if action == "list_context")
-                if list_context_count >= 2:
-                    observation = _build_repeated_list_context_guard_observation()
-                    state.steps.append(
-                        StepRecord(
-                            step_index=step_index,
-                            thought=model_step.thought,
-                            action=model_step.action,
-                            action_input=model_step.action_input,
-                            raw_response=raw_response,
-                            observation=observation,
-                            ok=False,
-                        )
-                    )
-                    continue
-
-            if model_step.action == "execute_python" and not _is_final_formatting_ready(state):
-                observation = _build_execute_python_formatting_guard_observation()
-                state.steps.append(
-                    StepRecord(
-                        step_index=step_index,
-                        thought=model_step.thought,
-                        action=model_step.action,
-                        action_input=model_step.action_input,
-                        raw_response=raw_response,
-                        observation=observation,
-                        ok=False,
-                    )
-                )
-                continue
-
-            if model_step.action == "retrieve":
-                should_block_retrieve, low_signal = _should_block_retrieve(state, model_step.action_input)
-                if should_block_retrieve:
-                    observation = _build_repeated_retrieve_guard_observation(low_signal=low_signal)
-                    state.steps.append(
-                        StepRecord(
-                            step_index=step_index,
-                            thought=model_step.thought,
-                            action=model_step.action,
-                            action_input=model_step.action_input,
-                            raw_response=raw_response,
-                            observation=observation,
-                            ok=False,
-                        )
-                    )
-                    continue
-
-            if _must_converge_to_answer(state) and model_step.action not in {"answer", "execute_python"}:
-                observation = _build_answer_convergence_guard_observation()
-                state.steps.append(
-                    StepRecord(
-                        step_index=step_index,
-                        thought=model_step.thought,
-                        action=model_step.action,
-                        action_input=model_step.action_input,
-                        raw_response=raw_response,
-                        observation=observation,
-                        ok=False,
-                    )
-                )
-                continue
-
-            if state.steps:
-                expected_path, expected_sql = _extract_selected_sql_from_pipeline_observation(previous_observation)
-                if expected_sql is not None:
-                    selected_path = expected_path
-                    if model_step.action != "execute_context_sql":
-                        observation = _build_pipeline_execution_guard_observation(
-                            expected_path=selected_path,
-                            expected_sql=expected_sql,
-                        )
-                        state.steps.append(
-                            StepRecord(
-                                step_index=step_index,
-                                thought=model_step.thought,
-                                action=model_step.action,
-                                action_input=model_step.action_input,
-                                raw_response=raw_response,
-                                observation=observation,
-                                ok=False,
-                            )
-                        )
-                        continue
-
-                    submitted_sql = model_step.action_input.get("sql")
-                    submitted_path = model_step.action_input.get("path")
-                    normalized_submitted_sql = str(submitted_sql).strip() if submitted_sql is not None else ""
-                    normalized_expected_sql = expected_sql.strip()
-                    normalized_submitted_path = (
-                        str(submitted_path).strip() if submitted_path is not None else ""
-                    )
-                    normalized_expected_path = selected_path.strip() if selected_path is not None else ""
-
-                    if normalized_submitted_sql != normalized_expected_sql or (
-                        normalized_expected_path and normalized_submitted_path != normalized_expected_path
-                    ):
-                        observation = _build_pipeline_execution_guard_observation(
-                            expected_path=selected_path,
-                            expected_sql=expected_sql,
-                        )
-                        state.steps.append(
-                            StepRecord(
-                                step_index=step_index,
-                                thought=model_step.thought,
-                                action=model_step.action,
-                                action_input=model_step.action_input,
-                                raw_response=raw_response,
-                                observation=observation,
-                                ok=False,
-                            )
-                        )
-                        continue
-
             try:
                 tool_result = self.tools.execute(
                     task,
@@ -848,7 +442,6 @@ class ReActAgent:
                 )
             except Exception as exc:
                 observation = _build_tool_error_observation(exc, model_step.action)
-                observation = _augment_repeated_tool_error_hint(state, observation)
                 state.steps.append(
                     StepRecord(
                         step_index=step_index,
