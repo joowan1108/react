@@ -5,6 +5,7 @@ from data_agent_baseline.tools.registry import (
     create_default_tool_registry,
 )
 from data_agent_baseline.tools.sql_generate import generate_sql_candidates_with_model
+from data_agent_baseline.tools.sql_pipeline import run_sql_pipeline_with_model
 from data_agent_baseline.tools.sql_revise import revise_sql_candidates_with_model
 from data_agent_baseline.tools.retrieve import build_markdown_database, retrieve_by_keyword, search_keyword_database
 from data_agent_baseline.tools.scan import build_structured_sqlite_database, scan_sources
@@ -21,6 +22,7 @@ __all__ = [
     "create_default_tool_registry",
     "generate_sql_candidates_with_model",
     "link_sources",
+    "run_sql_pipeline_with_model",
     "revise_sql_candidates_with_model",
     "retrieve_by_keyword",
     "scan_sources",

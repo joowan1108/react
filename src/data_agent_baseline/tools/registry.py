@@ -16,6 +16,7 @@ from data_agent_baseline.tools.filesystem import (
     resolve_context_path,
 )
 from data_agent_baseline.tools.sql_generate import generate_sql_candidates_with_model
+from data_agent_baseline.tools.sql_pipeline import run_sql_pipeline_with_model
 from data_agent_baseline.tools.sql_revise import revise_sql_candidates_with_model
 from data_agent_baseline.tools.link import link_sources
 from data_agent_baseline.tools.python_exec import execute_python_code
@@ -237,6 +238,34 @@ def _inspect_sqlite_schema(task: PublicTask, action_input: dict[str, Any], _: Mo
     return ToolExecutionResult(ok=True, content=inspect_sqlite_schema(path))
 
 
+def _run_sql_pipeline(
+    task: PublicTask,
+    action_input: dict[str, Any],
+    model: ModelAdapter | None,
+) -> ToolExecutionResult:
+    if model is None:
+        raise RuntimeError("run_sql_pipeline requires an available model adapter.")
+
+    path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
+    question = str(action_input["question"])
+    num_candidates = int(action_input.get("num_candidates", 3))
+    revision_rounds = int(action_input.get("revision_rounds", 1))
+    verify_limit = int(action_input.get("verify_limit", 50))
+    raw_schema_link_context = action_input.get("schema_link_context")
+    schema_link_context = raw_schema_link_context if isinstance(raw_schema_link_context, dict) else None
+
+    content = run_sql_pipeline_with_model(
+        model,
+        path=path,
+        question=question,
+        num_candidates=num_candidates,
+        revision_rounds=revision_rounds,
+        verify_limit=verify_limit,
+        schema_link_context=schema_link_context,
+    )
+    return ToolExecutionResult(ok=True, content=content)
+
+
 def _revise_sql_candidates(
     task: PublicTask,
     action_input: dict[str, Any],
@@ -424,6 +453,17 @@ def create_default_tool_registry() -> ToolRegistry:
             description="Inspect tables and columns in a sqlite/db file inside context or a scanned temp sqlite database path.",
             input_schema={"path": "relative/or/absolute/path/to/file.sqlite"},
         ),
+        "run_sql_pipeline": ToolSpec(
+            name="run_sql_pipeline",
+            description="Run the higher-level SQL pipeline for difficult SQL: schema linking, SQL candidate generation, SQL verification, and optional SQL revision, then return a selected SQL candidate.",
+            input_schema={
+                "path": "/tmp/scanned.sqlite",
+                "question": "How many superheroes with Super Strength have height over 200cm?",
+                "num_candidates": 3,
+                "revision_rounds": 1,
+                "verify_limit": 50,
+            },
+        ),
         "revise_sql_candidates": ToolSpec(
             name="revise_sql_candidates",
             description="Use the model to revise failed or weak SQL candidates using verification feedback, then return improved grounded SQL candidates.",
@@ -514,6 +554,7 @@ def create_default_tool_registry() -> ToolRegistry:
         "execute_python": _execute_python,
         "generate_sql_candidates": _generate_sql_candidates,
         "inspect_sqlite_schema": _inspect_sqlite_schema,
+        "run_sql_pipeline": _run_sql_pipeline,
         "revise_sql_candidates": _revise_sql_candidates,
         "verify_sql_candidates": _verify_sql_candidates,
         "link": _link,

@@ -172,14 +172,11 @@ def _augment_repeated_tool_error_hint(state: AgentRuntimeState, observation: dic
 
     if tool == "execute_context_sql" and error_kind in {"no_such_table", "no_such_column"}:
         updated["retry_hint"] = (
-            "Stop repeating the same SQL guess. Use schema linking and SQL candidate generation "
-            "before making another direct SQL attempt."
+            "Stop repeating the same SQL guess. Prefer the higher-level SQL pipeline before making another direct SQL attempt."
         )
         updated["suggested_next_actions"] = [
             "inspect_sqlite_schema",
-            "schema_link_sql_context",
-            "generate_sql_candidates",
-            "verify_sql_candidates",
+            "run_sql_pipeline",
         ]
     elif tool == "execute_context_sql" and error_kind in {"missing_sqlite_asset", "path_escape"}:
         updated["retry_hint"] = (
@@ -226,16 +223,14 @@ def _augment_pipeline_observation_hint(action: str, observation: dict[str, objec
         updated = dict(observation)
         if acceptability == "reject":
             updated["retry_hint"] = (
-                "The best SQL candidate is still rejected. Revise the candidates using the "
-                "verification feedback instead of executing more direct SQL guesses."
+                "The best SQL candidate is still rejected. Prefer revising the candidates or rerunning the SQL pipeline instead of executing more direct SQL guesses."
             )
-            updated["suggested_next_actions"] = ["revise_sql_candidates", "generate_sql_candidates"]
+            updated["suggested_next_actions"] = ["revise_sql_candidates", "run_sql_pipeline"]
         elif acceptability == "weak_accept" or warning_list:
             updated["retry_hint"] = (
-                "The best SQL candidate is only weakly acceptable. Either revise it with the "
-                "verification feedback or execute only if no stronger candidate is available."
+                "The best SQL candidate is only weakly acceptable. Prefer revising it or rerunning the SQL pipeline before falling back to another fresh SQL guess."
             )
-            updated["suggested_next_actions"] = ["revise_sql_candidates", "execute_context_sql"]
+            updated["suggested_next_actions"] = ["revise_sql_candidates", "run_sql_pipeline", "execute_context_sql"]
         else:
             updated["retry_hint"] = (
                 "The best verified candidate looks acceptable. Prefer executing that candidate "
