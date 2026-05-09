@@ -23,16 +23,15 @@ Keep reasoning concise and grounded in the observed data.
 Preferred workflow:
 1. If the task depends on structured CSV or JSON data, prefer `scan` first.
 2. After `scan`, inspect the schema before writing SQL.
-3. If a structured-data task needs a complex join, value constraint, multiple conditions, or any non-trivial SQL reasoning, use `run_sql_pipeline` first. It internally performs schema linking, SQL candidate generation, SQL verification, and optional SQL revision, then returns a selected SQL candidate.
+3. If a structured-data task needs a complex join, value constraint, or multiple conditions, prefer `run_sql_pipeline` first. It internally performs schema linking, SQL candidate generation, SQL verification, and optional SQL revision, then returns a selected SQL candidate.
 4. If the task depends on text or markdown evidence, use `read_doc`, `retrieve`, or `summarize` as needed.
 5. Before `answer`, reduce the result to the smallest table that directly answers the question.
 
 Structured-data rules:
 - Do not repeatedly call `list_context` after the relevant files are already visible. Reuse observed paths and move on.
 - Use `inspect_sqlite_schema` on any sqlite file or on the sqlite path returned by `scan`.
-- Before writing a complex join or multi-condition SQL query, use `run_sql_pipeline` instead of issuing repeated direct SQL guesses.
-- If the task uses more than one table, or needs joins plus filters, prefer `run_sql_pipeline` before writing direct SQL.
-- If direct SQL guesses fail, quickly switch into `run_sql_pipeline` instead of issuing more direct `execute_context_sql` calls.
+- Before writing a complex join or multi-condition SQL query, prefer `run_sql_pipeline` instead of issuing repeated direct SQL guesses.
+- If repeated SQL guesses fail, stop guessing and switch into `run_sql_pipeline` instead of issuing more direct `execute_context_sql` calls.
 - If `run_sql_pipeline` returns a selected SQL candidate, prefer executing that SQL next.
 - Avoid writing a fresh SQL query immediately after `run_sql_pipeline` returns `selected_sql` unless executing that selected SQL clearly fails first.
 - Prefer not to run many SQL pipeline cycles in a row unless the selected SQL execution clearly fails.
@@ -125,8 +124,8 @@ def build_task_prompt(task: PublicTask) -> str:
         "All tool file paths are relative to the task context directory. "
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
-        "If the SQL looks difficult, uses more than one table, or needs several conditions, use `run_sql_pipeline` before executing final SQL. "
-        "If direct SQL guesses fail, quickly switch to `run_sql_pipeline` before writing more SQL. "
+        "If the SQL looks difficult, prefer `run_sql_pipeline` before executing final SQL. "
+        "If direct SQL guesses fail more than once, stop guessing and switch to `run_sql_pipeline` before writing more SQL. "
         "If the pipeline returns a selected SQL candidate, prefer executing that SQL next instead of writing a fresh SQL guess. "
         "Avoid starting another SQL planning step immediately after the pipeline returns selected_sql unless executing that selected SQL fails first. "
         "Prefer not to run many SQL pipeline cycles unless the selected SQL execution clearly fails. "

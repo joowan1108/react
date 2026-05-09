@@ -8,6 +8,49 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     uri = f"file:{path.resolve().as_posix()}?mode=ro"
     return sqlite3.connect(uri, uri=True)
 
+
+def _quote_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
+
+
+def _select_sample_columns(columns: list[dict[str, object]], *, max_columns: int = 4) -> list[str]:
+    prioritized_tokens = ("date", "time", "name", "status", "type", "category")
+    selected: list[str] = []
+
+    for column in columns:
+        name = str(column["name"])
+        lowered = name.casefold()
+        if any(token in lowered for token in prioritized_tokens):
+            selected.append(name)
+
+    for column in columns:
+        name = str(column["name"])
+        if name not in selected:
+            selected.append(name)
+
+    return selected[:max_columns]
+
+
+def _fetch_column_sample_values(
+    conn: sqlite3.Connection,
+    *,
+    table_name: str,
+    column_name: str,
+    limit: int = 5,
+) -> list[object]:
+    quoted_table = _quote_identifier(table_name)
+    quoted_column = _quote_identifier(column_name)
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT {quoted_column}
+        FROM {quoted_table}
+        WHERE {quoted_column} IS NOT NULL
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    return [row[0] for row in rows]
+
 def list_sqlite_table_names(path: Path) -> list[str]:
     with _connect_read_only(path) as conn:
         rows = conn.execute(
@@ -71,6 +114,18 @@ def inspect_sqlite_schema(path: Path) -> dict[str, object]:
                 for fk_row in foreign_key_rows
             ]
 
+            sample_values: dict[str, list[object]] = {}
+            for column_name in _select_sample_columns(columns):
+                try:
+                    values = _fetch_column_sample_values(
+                        conn,
+                        table_name=str(name),
+                        column_name=column_name,
+                    )
+                except sqlite3.Error:
+                    values = []
+                sample_values[column_name] = values
+
             tables.append(
                 {
                     "name": name,
@@ -78,6 +133,7 @@ def inspect_sqlite_schema(path: Path) -> dict[str, object]:
                     "columns": columns,
                     "primary_keys": primary_keys,
                     "foreign_keys": foreign_keys,
+                    "sample_values": sample_values,
                 }
             )
     return {
