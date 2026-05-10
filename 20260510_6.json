@@ -1,0 +1,565 @@
+{
+  "run_id": "20260510T092920Z",
+  "summary_lambda_0_1": {
+    "task_count": 50,
+    "prediction_count": 35,
+    "gold_count": 50,
+    "total_score": 0.44739999999999996,
+    "perfect_score_count": 21
+  },
+  "difficulty_breakdown": {
+    "easy": {
+      "count": 15,
+      "zero_score": 6,
+      "non_perfect": 7,
+      "sum_score": 8.92,
+      "missing_prediction": 1,
+      "extra_column_tasks": 6,
+      "avg_score": 0.5946666666666667
+    },
+    "extreme": {
+      "count": 1,
+      "zero_score": 1,
+      "non_perfect": 1,
+      "sum_score": 0.0,
+      "missing_prediction": 1,
+      "extra_column_tasks": 0,
+      "avg_score": 0.0
+    },
+    "hard": {
+      "count": 11,
+      "zero_score": 7,
+      "non_perfect": 7,
+      "sum_score": 4.0,
+      "missing_prediction": 5,
+      "extra_column_tasks": 2,
+      "avg_score": 0.36363636363636365
+    },
+    "medium": {
+      "count": 23,
+      "zero_score": 13,
+      "non_perfect": 14,
+      "sum_score": 9.45,
+      "missing_prediction": 8,
+      "extra_column_tasks": 6,
+      "avg_score": 0.41086956521739126
+    }
+  },
+  "failure_reason_by_difficulty": {
+    "easy": {
+      "Agent did not submit an answer within max_steps.": 1
+    },
+    "extreme": {
+      "Task timed out after 600 seconds.": 1
+    },
+    "hard": {
+      "Agent did not submit an answer within max_steps.": 1,
+      "Task timed out after 600 seconds.": 4
+    },
+    "medium": {
+      "Agent did not submit an answer within max_steps.": 6,
+      "Task timed out after 600 seconds.": 2
+    }
+  },
+  "notes_counter": {
+    "extra_columns_present": 14,
+    "missing_prediction": 15,
+    "name_pair_match_used": 1
+  },
+  "zero_score_with_prediction_examples": [
+    {
+      "task_id": "task_145",
+      "difficulty": "medium",
+      "question": "Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_163",
+      "difficulty": "medium",
+      "question": "Identify the type of expenses and their total value approved for 'October Meeting' event.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 2,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_169",
+      "difficulty": "medium",
+      "question": "What was the average monthly consumption of customers in SME for the year 2013?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_180",
+      "difficulty": "medium",
+      "question": "For all the people who paid more than 29.00 per unit of product id No.5. Give their consumption status in the August of 2012.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_25",
+      "difficulty": "easy",
+      "question": "Which event has the lowest cost?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 2,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_287",
+      "difficulty": "medium",
+      "question": "Identify the gender of the superhero who has the ability of Phoenix Force.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_355",
+      "difficulty": "hard",
+      "question": "Write the full name of the member who spent money for water, veggie tray and supplies and include the cost of it.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_420",
+      "difficulty": "hard",
+      "question": "What percentage of cards with format commander and legal status do not have a content warning?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_67",
+      "difficulty": "easy",
+      "question": "What is the average weight of all female superheroes?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_75",
+      "difficulty": "easy",
+      "question": "What is the surname of the driver with the best lap time in race number 19 in the second qualifying period?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    }
+  ],
+  "zero_score_missing_prediction_examples": [
+    {
+      "task_id": "task_173",
+      "difficulty": "medium",
+      "question": "Please list the countries of the gas stations with transactions taken place in June, 2013.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_19",
+      "difficulty": "easy",
+      "question": "List the full name of the Student_Club members that grew up in Illinois state.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_196",
+      "difficulty": "medium",
+      "question": "What is the average number of bonds the atoms with the element iodine have?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_199",
+      "difficulty": "medium",
+      "question": "List the names and funding types of schools from Riverside-related school districts where the average SAT math score across schools exceeds 400.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_200",
+      "difficulty": "medium",
+      "question": "Calculate the total atoms with triple-bond molecules containing the element phosphorus or bromine.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_218",
+      "difficulty": "medium",
+      "question": "What is the telephone number for the school with the lowest average score in reading in Fresno Unified?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_249",
+      "difficulty": "medium",
+      "question": "What is the average of the up votes and the average user age for users creating more than 10 posts?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_259",
+      "difficulty": "medium",
+      "question": "Among the posts with views ranging from 100 to 150, what is the comment with the highest score?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_261",
+      "difficulty": "medium",
+      "question": "Among the superheroes with the super power of \"Super Strength\", how many of them have a height of over 200cm?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_344",
+      "difficulty": "hard",
+      "question": "Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    }
+  ],
+  "lowest_score_tasks": [
+    {
+      "task_id": "task_19",
+      "difficulty": "easy",
+      "question": "List the full name of the Student_Club members that grew up in Illinois state.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_25",
+      "difficulty": "easy",
+      "question": "Which event has the lowest cost?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 2,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_67",
+      "difficulty": "easy",
+      "question": "What is the average weight of all female superheroes?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_75",
+      "difficulty": "easy",
+      "question": "What is the surname of the driver with the best lap time in race number 19 in the second qualifying period?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_80",
+      "difficulty": "easy",
+      "question": "What is his number of the driver who finished 0:01:54 in the Q3 of qualifying race No.903?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_86",
+      "difficulty": "easy",
+      "question": "Which race was Alex Yoong in when he was in track number less than 20?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_418",
+      "difficulty": "extreme",
+      "question": "Among the patients whose creatinine level is abnormal, how many of them aren't 70 yet?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_344",
+      "difficulty": "hard",
+      "question": "Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_350",
+      "difficulty": "hard",
+      "question": "Among the students from the Student_Club who attended the event \"Women's Soccer\", how many of them want a T-shirt that's in medium size?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_352",
+      "difficulty": "hard",
+      "question": "How many times was the budget in Advertisement for \"Yearly Kickoff\" meeting more than \"October Meeting\"?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_355",
+      "difficulty": "hard",
+      "question": "Write the full name of the member who spent money for water, veggie tray and supplies and include the cost of it.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_379",
+      "difficulty": "hard",
+      "question": "Tally the toxicology element of the 4th atom of each molecule that was carcinogenic.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_396",
+      "difficulty": "hard",
+      "question": "In superheroes with height between 150 to 180, what is the percentage of heroes published by Marvel Comics?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_420",
+      "difficulty": "hard",
+      "question": "What percentage of cards with format commander and legal status do not have a content warning?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_145",
+      "difficulty": "medium",
+      "question": "Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    }
+  ]
+}

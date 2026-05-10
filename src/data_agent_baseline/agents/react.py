@@ -41,12 +41,6 @@ class AgentPolicyState:
     low_signal_count: int
 
 
-@dataclass(frozen=True, slots=True)
-class ActionBlock:
-    retry_hint: str
-    suggested_next_actions: list[str]
-
-
 def _strip_json_fence(raw_response: str) -> str:
     text = raw_response.strip()
     fence_match = re.search(r"```json\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
@@ -502,81 +496,6 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
     return "Control hints:\n- " + "\n- ".join(hints)
 
 
-def _build_action_block_observation(action: str, block: ActionBlock) -> dict[str, object]:
-    return {
-        "ok": False,
-        "tool": action,
-        "error_type": "policy_block",
-        "error": block.retry_hint,
-        "retry_hint": block.retry_hint,
-        "suggested_next_actions": block.suggested_next_actions,
-    }
-
-
-def _maybe_block_action(
-    task: PublicTask,
-    state: AgentRuntimeState,
-    policy: AgentPolicyState,
-    model_step: ModelStep,
-) -> ActionBlock | None:
-    repeated_count = _count_recent_same_action(state.steps, model_step.action, model_step.action_input)
-    policy = AgentPolicyState(
-        next_step_index=policy.next_step_index,
-        remaining_steps=policy.remaining_steps,
-        near_limit=policy.near_limit,
-        has_selected_sql_waiting=policy.has_selected_sql_waiting,
-        has_ready_sql_result=policy.has_ready_sql_result,
-        repeated_same_action_count=repeated_count,
-        recent_sql_error_count=policy.recent_sql_error_count,
-        list_context_count=policy.list_context_count,
-        low_signal_count=policy.low_signal_count,
-    )
-
-    if repeated_count >= 2:
-        return ActionBlock(
-            retry_hint="Do not repeat the same action with the same input again. Use a different grounded next step.",
-            suggested_next_actions=["inspect_sqlite_schema", "run_sql_pipeline", "answer"],
-        )
-
-    if model_step.action == "list_context" and policy.list_context_count >= 2:
-        return ActionBlock(
-            retry_hint="The context has already been listed enough times. Reuse observed paths and continue with grounded tools.",
-            suggested_next_actions=["scan", "inspect_sqlite_schema", "read_doc"],
-        )
-
-    if policy.has_selected_sql_waiting and model_step.action not in {"execute_context_sql", "answer"}:
-        return ActionBlock(
-            retry_hint="A selected SQL candidate is waiting. Execute that SQL next instead of starting a new planning or exploration step.",
-            suggested_next_actions=["execute_context_sql"],
-        )
-
-    if policy.recent_sql_error_count >= 2 and model_step.action == "execute_context_sql":
-        return ActionBlock(
-            retry_hint="Recent direct SQL attempts already failed multiple times. Prefer run_sql_pipeline or schema inspection instead of another fresh SQL guess.",
-            suggested_next_actions=["run_sql_pipeline", "inspect_sqlite_schema"],
-        )
-
-    if policy.near_limit and model_step.action in LOW_SIGNAL_ACTIONS:
-        next_actions = ["answer", "execute_context_sql", "execute_python"] if policy.has_ready_sql_result else ["execute_context_sql", "answer"]
-        return ActionBlock(
-            retry_hint="You are near the step limit. Avoid low-signal exploration now and move directly toward a grounded answer.",
-            suggested_next_actions=next_actions,
-        )
-
-    if (
-        task.difficulty.casefold().strip() == "easy"
-        and model_step.action == "run_sql_pipeline"
-        and policy.recent_sql_error_count == 0
-        and policy.next_step_index <= 4
-    ):
-        return ActionBlock(
-            retry_hint="For easy tasks, try the lighter grounded path first: inspect schema and use direct SQL before escalating to run_sql_pipeline.",
-            suggested_next_actions=["inspect_sqlite_schema", "execute_context_sql"],
-        )
-
-    return None
-
-
 def _question_expects_single_value(question: str) -> bool:
     lowered = question.casefold()
     return any(marker in lowered for marker in SINGLE_VALUE_HINTS)
@@ -692,26 +611,6 @@ class ReActAgent:
                         action_input={},
                         raw_response=raw_response,
                         observation=observation,
-                        ok=False,
-                    )
-                )
-                continue
-
-            policy = _build_policy_state(
-                state,
-                next_step_index=step_index,
-                max_steps=self.config.max_steps,
-            )
-            blocked = _maybe_block_action(task, state, policy, model_step)
-            if blocked is not None:
-                state.steps.append(
-                    StepRecord(
-                        step_index=step_index,
-                        thought=model_step.thought,
-                        action=model_step.action,
-                        action_input=model_step.action_input,
-                        raw_response=raw_response,
-                        observation=_build_action_block_observation(model_step.action, blocked),
                         ok=False,
                     )
                 )

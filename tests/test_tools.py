@@ -600,20 +600,6 @@ class TestDifficultyRouting:
 
 
 class TestAgentPolicies:
-    def test_repeated_action_is_blocked(self, ctx: Path, registry):
-        task = make_task_with_difficulty(ctx, "easy")
-        model = ScriptedModelAdapter(
-            [
-                "```json\n{\"thought\":\"inspect files\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
-                "```json\n{\"thought\":\"inspect files again\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
-                "```json\n{\"thought\":\"inspect files again\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
-            ]
-        )
-        agent = ReActAgent(model=model, tools=registry, config=ReActAgentConfig(max_steps=3))
-        result = agent.run(task)
-        assert result.answer is None
-        assert result.steps[-1].observation["error_type"] == "policy_block"
-
     def test_build_fallback_answer_from_ready_sql_result(self, ctx: Path):
         task = make_task_with_difficulty(ctx, "easy")
         task = PublicTask(
