@@ -1,0 +1,9 @@
+sql
+"CREATE TABLE ""attendance""
+(
+    link_to_event  TEXT,
+    link_to_member TEXT,
+    primary key (link_to_event, link_to_member),
+    foreign key (link_to_event) references event(event_id),
+    foreign key (link_to_member) references member(member_id)
+)"

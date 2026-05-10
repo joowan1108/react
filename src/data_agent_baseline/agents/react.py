@@ -64,6 +64,7 @@ class AgentPolicyState:
     near_limit: bool
     has_selected_sql_waiting: bool
     has_ready_sql_result: bool
+    has_grounded_sql_result: bool
     repeated_same_action_count: int
     recent_sql_error_count: int
     list_context_count: int
@@ -460,6 +461,23 @@ def _find_last_ready_sql_observation(steps: list[StepRecord]) -> dict[str, objec
     return None
 
 
+def _find_last_grounded_sql_observation(steps: list[StepRecord]) -> dict[str, object] | None:
+    for step in reversed(steps):
+        observation = step.observation
+        if not isinstance(observation, dict) or not observation.get("ok"):
+            continue
+        if observation.get("tool") != "execute_context_sql":
+            continue
+        content = observation.get("content")
+        if not isinstance(content, dict):
+            continue
+        row_count = content.get("row_count")
+        truncated = bool(content.get("truncated"))
+        if isinstance(row_count, int) and row_count > 0 and not truncated:
+            return observation
+    return None
+
+
 def _find_last_pending_selected_sql_observation(steps: list[StepRecord]) -> dict[str, object] | None:
     for index in range(len(steps) - 1, -1, -1):
         step = steps[index]
@@ -492,12 +510,14 @@ def _build_policy_state(
     remaining_steps = max(0, max_steps - next_step_index + 1)
     pending_selected_sql = _find_last_pending_selected_sql_observation(state.steps)
     ready_sql_observation = _find_last_ready_sql_observation(state.steps)
+    grounded_sql_observation = _find_last_grounded_sql_observation(state.steps)
     return AgentPolicyState(
         next_step_index=next_step_index,
         remaining_steps=remaining_steps,
         near_limit=remaining_steps <= 3,
         has_selected_sql_waiting=pending_selected_sql is not None,
         has_ready_sql_result=ready_sql_observation is not None,
+        has_grounded_sql_result=grounded_sql_observation is not None,
         repeated_same_action_count=0,
         recent_sql_error_count=_count_recent_sql_errors(state.steps),
         list_context_count=sum(1 for step in state.steps if step.action == "list_context"),
@@ -516,8 +536,14 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
         hints.append("Recent direct SQL attempts failed. Prefer schema inspection or run_sql_pipeline instead of more fresh SQL guesses.")
     if policy.near_limit and policy.has_ready_sql_result:
         hints.append("You are near the step limit and already have grounded rows. Prefer final shaping or answer now.")
+    elif policy.near_limit and policy.has_grounded_sql_result:
+        hints.append("You are near the step limit and already have a non-empty SQL result. Prefer answer now unless one tiny reshape is clearly required.")
     elif policy.near_limit:
         hints.append("You are near the step limit. Avoid low-signal exploration and move toward the smallest grounded answer.")
+    elif policy.has_ready_sql_result:
+        hints.append("A grounded SQL result is already answer-ready. Prefer answer or one tiny final reshape over more exploration.")
+    elif policy.has_grounded_sql_result:
+        hints.append("A grounded SQL result already exists. Avoid more exploration unless the current columns still clearly need reshaping.")
     if policy.list_context_count >= 2:
         hints.append("Do not call list_context again unless a missing-path error forces it.")
     if not hints:
@@ -645,6 +671,62 @@ def _sanitize_answer_action_input(
         "columns": trimmed_columns,
         "rows": trimmed_rows,
     }
+
+
+def _augment_general_sql_execution_observation(
+    task: PublicTask,
+    observation: dict[str, object],
+) -> dict[str, object]:
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return observation
+
+    row_count = content.get("row_count")
+    truncated = bool(content.get("truncated"))
+    columns = content.get("columns")
+    rows = content.get("rows")
+    if not isinstance(row_count, int) or row_count <= 0 or truncated:
+        return observation
+    if not isinstance(columns, list) or not all(isinstance(item, str) for item in columns):
+        return observation
+    if not isinstance(rows, list):
+        return observation
+
+    updated = dict(observation)
+    sanitized_columns, sanitized_rows = _sanitize_answer_payload(
+        task,
+        list(columns),
+        [list(row) for row in rows if isinstance(row, list)],
+    )
+
+    if _question_expects_single_value(task.question):
+        if len(sanitized_columns) == 1 and len(sanitized_rows) == 1:
+            updated["retry_hint"] = (
+                "You already have a grounded SQL result that looks like a single final value. "
+                "Prefer answering now instead of exploring more."
+            )
+            updated["suggested_next_actions"] = ["answer"]
+            updated["ready_to_answer_if_grounded"] = True
+        return updated
+
+    if len(sanitized_columns) == 1 and len(sanitized_rows) <= 20:
+        updated["retry_hint"] = (
+            "You already have a grounded SQL result with a compact final shape. "
+            "Prefer answering now or doing one tiny final reshape."
+        )
+        updated["suggested_next_actions"] = ["answer", "execute_python"]
+        updated["ready_to_answer_if_grounded"] = True
+        return updated
+
+    if _question_expects_listing(task.question) and len(sanitized_columns) <= 2 and len(sanitized_rows) <= 10:
+        updated["retry_hint"] = (
+            "You already have grounded rows in a compact result. Prefer answering now unless one tiny reshape is still needed."
+        )
+        updated["suggested_next_actions"] = ["answer", "execute_python"]
+        updated["ready_to_answer_if_grounded"] = True
+        return updated
+
+    return updated
 
 
 def _build_fallback_answer(task: PublicTask, state: AgentRuntimeState) -> AnswerTable | None:
@@ -792,6 +874,7 @@ class ReActAgent:
             observation = _augment_pipeline_observation_hint(model_step.action, observation)
             if model_step.action == "execute_context_sql":
                 observation = _augment_selected_sql_execution_observation(previous_observation, observation)
+                observation = _augment_general_sql_execution_observation(task, observation)
             step_record = StepRecord(
                 step_index=step_index,
                 thought=model_step.thought,

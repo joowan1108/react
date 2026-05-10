@@ -18,7 +18,12 @@ from pathlib import Path
 import pytest
 
 from data_agent_baseline.agents.model import ScriptedModelAdapter
-from data_agent_baseline.agents.react import ReActAgent, ReActAgentConfig
+from data_agent_baseline.agents.react import (
+    ReActAgent,
+    ReActAgentConfig,
+    _augment_general_sql_execution_observation,
+)
+from data_agent_baseline.agents.runtime import AgentRuntimeState, StepRecord
 from data_agent_baseline.benchmark.schema import PublicTask, TaskAssets, TaskRecord
 from data_agent_baseline.tools.registry import create_default_tool_registry
 
@@ -177,6 +182,66 @@ class TestMultiStepSuccess:
         assert result.answer is not None
         assert result.answer.columns == ["employee_count"]
         assert result.answer.rows == [[42]]
+
+    def test_general_sql_success_marks_compact_listing_ready_to_answer(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-ready",
+                difficulty="easy",
+                question="Which employees have the highest scores?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        observation = {
+            "ok": True,
+            "tool": "execute_context_sql",
+            "content": {
+                "columns": ["employee_name"],
+                "rows": [["Alice"], ["Bob"]],
+                "row_count": 2,
+                "truncated": False,
+            },
+        }
+
+        updated = _augment_general_sql_execution_observation(task, observation)
+        assert updated["ready_to_answer_if_grounded"] is True
+        assert updated["suggested_next_actions"] == ["answer", "execute_python"]
+
+    def test_near_limit_control_message_prefers_answer_when_grounded_rows_exist(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-control",
+                difficulty="medium",
+                question="List the employee names.",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        state = AgentRuntimeState()
+        state.steps.append(
+            StepRecord(
+                step_index=1,
+                thought="",
+                action="execute_context_sql",
+                action_input={"path": "tmp.sqlite", "sql": "SELECT employee_name FROM employees"},
+                raw_response="",
+                observation={
+                    "ok": True,
+                    "tool": "execute_context_sql",
+                    "content": {
+                        "columns": ["employee_name"],
+                        "rows": [["Alice"], ["Bob"]],
+                        "row_count": 2,
+                        "truncated": False,
+                    },
+                },
+                ok=True,
+            )
+        )
+        agent = ReActAgent(model=ScriptedModelAdapter([]), tools=create_default_tool_registry(), config=ReActAgentConfig(max_steps=3))
+        messages = agent._build_messages(task, state, next_step_index=3)
+        control_messages = [message.content for message in messages if message.role == "user" and "Control hints:" in message.content]
+        assert control_messages
+        assert "Prefer final shaping or answer now" in control_messages[-1] or "Prefer answer now" in control_messages[-1]
 
 
 # ---------------------------------------------------------------------------
