@@ -17,8 +17,9 @@ import pytest
 
 from data_agent_baseline.agents.model import ScriptedModelAdapter
 from data_agent_baseline.agents.prompt import build_task_prompt
-from data_agent_baseline.agents.react import ReActAgent
-from data_agent_baseline.benchmark.schema import PublicTask, TaskAssets, TaskRecord
+from data_agent_baseline.agents.react import ReActAgent, ReActAgentConfig, _build_fallback_answer
+from data_agent_baseline.agents.runtime import AgentRuntimeState, StepRecord
+from data_agent_baseline.benchmark.schema import AnswerTable, PublicTask, TaskAssets, TaskRecord
 from data_agent_baseline.tools.registry import ToolExecutionResult, create_default_tool_registry
 from data_agent_baseline.tools.sql_linking import build_schema_link_context
 
@@ -596,3 +597,54 @@ class TestDifficultyRouting:
         assert result.ok
         link_context = result.content["schema_link_context"]
         assert isinstance(link_context.get("knowledge_hints"), list)
+
+
+class TestAgentPolicies:
+    def test_repeated_action_is_blocked(self, ctx: Path, registry):
+        task = make_task_with_difficulty(ctx, "easy")
+        model = ScriptedModelAdapter(
+            [
+                "```json\n{\"thought\":\"inspect files\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
+                "```json\n{\"thought\":\"inspect files again\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
+                "```json\n{\"thought\":\"inspect files again\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
+            ]
+        )
+        agent = ReActAgent(model=model, tools=registry, config=ReActAgentConfig(max_steps=3))
+        result = agent.run(task)
+        assert result.answer is None
+        assert result.steps[-1].observation["error_type"] == "policy_block"
+
+    def test_build_fallback_answer_from_ready_sql_result(self, ctx: Path):
+        task = make_task_with_difficulty(ctx, "easy")
+        task = PublicTask(
+            record=TaskRecord(task_id=task.task_id, difficulty=task.difficulty, question="Which event has the lowest cost?"),
+            assets=task.assets,
+        )
+        state = AgentRuntimeState(
+            steps=[
+                StepRecord(
+                    step_index=1,
+                    thought="",
+                    action="execute_context_sql",
+                    action_input={},
+                    raw_response="",
+                    observation={
+                        "ok": True,
+                        "tool": "execute_context_sql",
+                        "ready_to_answer_if_grounded": True,
+                        "content": {
+                            "columns": ["event_name"],
+                            "rows": [["November Speaker"], ["October Speaker"]],
+                            "row_count": 2,
+                            "truncated": False,
+                        },
+                    },
+                    ok=True,
+                )
+            ]
+        )
+        answer = _build_fallback_answer(task, state)
+        assert answer == AnswerTable(
+            columns=["event_name"],
+            rows=[["November Speaker"], ["October Speaker"]],
+        )
