@@ -634,3 +634,34 @@ class TestAgentPolicies:
             columns=["event_name"],
             rows=[["November Speaker"], ["October Speaker"]],
         )
+
+    def test_build_fallback_answer_rejects_wide_listing(self, ctx: Path):
+        task = make_task_with_difficulty(ctx, "easy")
+        task = PublicTask(
+            record=TaskRecord(task_id=task.task_id, difficulty=task.difficulty, question="Which employee has the highest score?"),
+            assets=task.assets,
+        )
+        state = AgentRuntimeState(
+            steps=[
+                StepRecord(
+                    step_index=1,
+                    thought="",
+                    action="execute_context_sql",
+                    action_input={},
+                    raw_response="",
+                    observation={
+                        "ok": True,
+                        "tool": "execute_context_sql",
+                        "ready_to_answer_if_grounded": True,
+                        "content": {
+                            "columns": ["employee_id", "employee_name"],
+                            "rows": [[101, "Alice"]],
+                            "row_count": 1,
+                            "truncated": False,
+                        },
+                    },
+                    ok=True,
+                )
+            ]
+        )
+        assert _build_fallback_answer(task, state) is None

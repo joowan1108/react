@@ -164,6 +164,7 @@ def build_structured_sqlite_database(
                     "row_count": len(rows),
                 }
             )
+
         conn.commit()
 
     return {

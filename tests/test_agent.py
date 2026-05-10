@@ -130,6 +130,54 @@ class TestMultiStepSuccess:
         assert step0.ok is True
         assert "hello" in str(step0.observation)
 
+    def test_answer_submission_drops_unrequested_helper_id_column(self, ctx: Path, registry):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-ids",
+                difficulty="easy",
+                question="Which employee has the highest score?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        model = ScriptedModelAdapter(
+            [
+                answer_response(
+                    ["employee_id", "employee_name"],
+                    [[101, "Alice"]],
+                )
+            ]
+        )
+        agent = ReActAgent(model=model, tools=registry, config=ReActAgentConfig(max_steps=5))
+        result = agent.run(task)
+
+        assert result.answer is not None
+        assert result.answer.columns == ["employee_name"]
+        assert result.answer.rows == [["Alice"]]
+
+    def test_single_value_answer_keeps_only_metric_column(self, ctx: Path, registry):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-metric",
+                difficulty="easy",
+                question="How many employees are there?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        model = ScriptedModelAdapter(
+            [
+                answer_response(
+                    ["team_name", "employee_count"],
+                    [["All", 42]],
+                )
+            ]
+        )
+        agent = ReActAgent(model=model, tools=registry, config=ReActAgentConfig(max_steps=5))
+        result = agent.run(task)
+
+        assert result.answer is not None
+        assert result.answer.columns == ["employee_count"]
+        assert result.answer.rows == [[42]]
+
 
 # ---------------------------------------------------------------------------
 # 잘못된 JSON → error step

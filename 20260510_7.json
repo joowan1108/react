@@ -1,0 +1,293 @@
+{
+  "run_id": "20260510T110657Z",
+  "summary_lambda_0_1": {
+    "task_count": 50,
+    "prediction_count": 42,
+    "gold_count": 50,
+    "total_score": 0.48166666666666663,
+    "perfect_score_count": 23,
+    "succeeded_task_count": 42
+  },
+  "difficulty_breakdown": {
+    "easy": {
+      "count": 15,
+      "zero_score": 7,
+      "non_perfect": 8,
+      "sum_score": 7.633333333333333,
+      "missing_prediction": 0,
+      "extra_column_tasks": 8,
+      "avg_score": 0.5088888888888888
+    },
+    "extreme": {
+      "count": 1,
+      "zero_score": 1,
+      "non_perfect": 1,
+      "sum_score": 0.0,
+      "missing_prediction": 1,
+      "extra_column_tasks": 0,
+      "avg_score": 0.0
+    },
+    "hard": {
+      "count": 11,
+      "zero_score": 6,
+      "non_perfect": 6,
+      "sum_score": 5.0,
+      "missing_prediction": 4,
+      "extra_column_tasks": 2,
+      "avg_score": 0.45454545454545453
+    },
+    "medium": {
+      "count": 23,
+      "zero_score": 11,
+      "non_perfect": 12,
+      "sum_score": 11.45,
+      "missing_prediction": 3,
+      "extra_column_tasks": 9,
+      "avg_score": 0.4978260869565217
+    }
+  },
+  "failure_reason_by_difficulty": {
+    "extreme": {
+      "Task timed out after 600 seconds.": 1
+    },
+    "hard": {
+      "Agent did not submit an answer within max_steps.": 1,
+      "Task timed out after 600 seconds.": 3
+    },
+    "medium": {
+      "Agent did not submit an answer within max_steps.": 3
+    }
+  },
+  "notes_counter": {
+    "extra_columns_present": 19,
+    "missing_prediction": 8,
+    "name_pair_match_used": 3
+  },
+  "lowest_score_tasks": [
+    {
+      "task_id": "task_25",
+      "difficulty": "easy",
+      "question": "Which event has the lowest cost?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 2,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_26",
+      "difficulty": "easy",
+      "question": "How many members of the Student_Club have major in 'Physics Teaching'?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_38",
+      "difficulty": "easy",
+      "question": "List all the withdrawals in cash transactions that the client with the id 3356 makes.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_67",
+      "difficulty": "easy",
+      "question": "What is the average weight of all female superheroes?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_80",
+      "difficulty": "easy",
+      "question": "What is his number of the driver who finished 0:01:54 in the Q3 of qualifying race No.903?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_86",
+      "difficulty": "easy",
+      "question": "Which race was Alex Yoong in when he was in track number less than 20?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_89",
+      "difficulty": "easy",
+      "question": "What's the finish time for the driver who ranked second in 2008's Chinese Grand Prix?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_418",
+      "difficulty": "extreme",
+      "question": "Among the patients whose creatinine level is abnormal, how many of them aren't 70 yet?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_344",
+      "difficulty": "hard",
+      "question": "Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Agent did not submit an answer within max_steps."
+    },
+    {
+      "task_id": "task_350",
+      "difficulty": "hard",
+      "question": "Among the students from the Student_Club who attended the event \"Women's Soccer\", how many of them want a T-shirt that's in medium size?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_352",
+      "difficulty": "hard",
+      "question": "How many times was the budget in Advertisement for \"Yearly Kickoff\" meeting more than \"October Meeting\"?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_379",
+      "difficulty": "hard",
+      "question": "Tally the toxicology element of the 4th atom of each molecule that was carcinogenic.",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_396",
+      "difficulty": "hard",
+      "question": "In superheroes with height between 150 to 180, what is the percentage of heroes published by Marvel Comics?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 0,
+      "missing_prediction": true,
+      "notes": [
+        "missing_prediction"
+      ],
+      "succeeded": false,
+      "failure_reason": "Task timed out after 600 seconds."
+    },
+    {
+      "task_id": "task_420",
+      "difficulty": "hard",
+      "question": "What percentage of cards with format commander and legal status do not have a content warning?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    },
+    {
+      "task_id": "task_145",
+      "difficulty": "medium",
+      "question": "Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?",
+      "score": 0.0,
+      "recall": 0.0,
+      "extra_columns": 1,
+      "missing_prediction": false,
+      "notes": [
+        "extra_columns_present"
+      ],
+      "succeeded": true,
+      "failure_reason": null
+    }
+  ],
+  "lambda_sweep": {
+    "scores_by_lambda": {
+      "0.1": 0.48166666666666663,
+      "0.2": 0.48,
+      "0.3": 0.4783333333333333,
+      "0.4": 0.47666666666666674,
+      "0.5": 0.475,
+      "0.6": 0.4733333333333333,
+      "0.7": 0.47166666666666673,
+      "0.8": 0.47,
+      "0.9": 0.4683333333333334
+    },
+    "delta_0_1_to_0_9": -0.013333333333333253,
+    "range": 0.013333333333333253
+  }
+}

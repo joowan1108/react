@@ -26,6 +26,35 @@ LOW_SIGNAL_ACTIONS = frozenset({"list_context", "read_doc", "retrieve", "summari
 SQL_ACTIONS = frozenset({"execute_context_sql", "run_sql_pipeline", "inspect_sqlite_schema", "scan"})
 LISTING_HINTS = ("which", "who", "list", "show", "what are", "give me")
 SINGLE_VALUE_HINTS = ("how many", "count", "number of", "average", "avg", "sum", "maximum", "minimum", "max", "min")
+HELPER_COLUMN_TOKENS = frozenset(
+    {
+        "id",
+        "date",
+        "time",
+        "timestamp",
+        "created",
+        "updated",
+        "rank",
+        "index",
+        "idx",
+        "row",
+        "num",
+        "number",
+    }
+)
+AGGREGATE_COLUMN_TOKENS = frozenset(
+    {
+        "count",
+        "total",
+        "sum",
+        "avg",
+        "average",
+        "min",
+        "minimum",
+        "max",
+        "maximum",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -506,6 +535,118 @@ def _question_expects_listing(question: str) -> bool:
     return any(marker in lowered for marker in LISTING_HINTS)
 
 
+def _tokenize_text(text: str) -> list[str]:
+    return [token for token in re.split(r"[^a-z0-9]+", text.casefold()) if token]
+
+
+def _is_helper_column_name(column_name: str) -> bool:
+    tokens = _tokenize_text(column_name)
+    if not tokens:
+        return False
+    if tokens[-1] == "id":
+        return True
+    return all(token in HELPER_COLUMN_TOKENS for token in tokens)
+
+
+def _is_aggregate_column_name(column_name: str) -> bool:
+    tokens = _tokenize_text(column_name)
+    return any(token in AGGREGATE_COLUMN_TOKENS for token in tokens)
+
+
+def _question_mentions_column(question: str, column_name: str) -> bool:
+    question_lowered = question.casefold()
+    column_lowered = column_name.casefold()
+    if column_lowered in question_lowered:
+        return True
+
+    column_tokens = [token for token in _tokenize_text(column_name) if token not in HELPER_COLUMN_TOKENS]
+    if not column_tokens:
+        column_tokens = _tokenize_text(column_name)
+    if not column_tokens:
+        return False
+
+    question_tokens = set(_tokenize_text(question))
+    return all(token in question_tokens for token in column_tokens)
+
+
+def _project_answer_table(
+    columns: list[str],
+    rows: list[list[Any]],
+    keep_indexes: list[int],
+) -> tuple[list[str], list[list[Any]]]:
+    projected_columns = [columns[index] for index in keep_indexes]
+    projected_rows = [[row[index] for index in keep_indexes] for row in rows]
+    return projected_columns, projected_rows
+
+
+def _sanitize_answer_payload(
+    task: PublicTask,
+    columns: list[str],
+    rows: list[list[Any]],
+) -> tuple[list[str], list[list[Any]]]:
+    if len(columns) <= 1:
+        return columns, rows
+
+    question = task.question
+    row_count = len(rows)
+    mentioned_indexes = [
+        index for index, column in enumerate(columns) if _question_mentions_column(question, column)
+    ]
+    non_helper_indexes = [
+        index for index, column in enumerate(columns) if not _is_helper_column_name(column)
+    ]
+
+    if _question_expects_single_value(question) and row_count == 1:
+        preferred_indexes = [
+            index
+            for index, column in enumerate(columns)
+            if _question_mentions_column(question, column) or _is_aggregate_column_name(column)
+        ]
+        preferred_non_helper = [
+            index for index in preferred_indexes if not _is_helper_column_name(columns[index])
+        ]
+        if len(preferred_non_helper) == 1:
+            return _project_answer_table(columns, rows, preferred_non_helper)
+        if len(non_helper_indexes) == 1:
+            return _project_answer_table(columns, rows, non_helper_indexes)
+        return columns, rows
+
+    keep_indexes: list[int] = []
+    for index, column in enumerate(columns):
+        if _question_mentions_column(question, column) or not _is_helper_column_name(column):
+            keep_indexes.append(index)
+
+    if keep_indexes and len(keep_indexes) < len(columns):
+        return _project_answer_table(columns, rows, keep_indexes)
+
+    if _question_expects_listing(question) and mentioned_indexes and len(mentioned_indexes) < len(columns):
+        return _project_answer_table(columns, rows, mentioned_indexes)
+
+    return columns, rows
+
+
+def _sanitize_answer_action_input(
+    task: PublicTask,
+    action_input: dict[str, object],
+) -> dict[str, object]:
+    columns = action_input.get("columns")
+    rows = action_input.get("rows")
+    if not isinstance(columns, list) or not isinstance(rows, list):
+        return action_input
+    if not columns or not all(isinstance(item, str) for item in columns):
+        return action_input
+    if not all(isinstance(row, list) and len(row) == len(columns) for row in rows):
+        return action_input
+
+    normalized_columns = list(columns)
+    normalized_rows = [list(row) for row in rows]
+    trimmed_columns, trimmed_rows = _sanitize_answer_payload(task, normalized_columns, normalized_rows)
+    return {
+        "columns": trimmed_columns,
+        "rows": trimmed_rows,
+    }
+
+
 def _build_fallback_answer(task: PublicTask, state: AgentRuntimeState) -> AnswerTable | None:
     observation = _find_last_ready_sql_observation(state.steps)
     if not observation:
@@ -528,10 +669,7 @@ def _build_fallback_answer(task: PublicTask, state: AgentRuntimeState) -> Answer
             return AnswerTable(columns=list(columns), rows=[list(rows[0])])
         return None
 
-    if len(columns) == 1 and len(rows) <= 20:
-        return AnswerTable(columns=list(columns), rows=[list(row) for row in rows])
-
-    if _question_expects_listing(task.question) and len(columns) <= 2 and len(rows) <= 10:
+    if len(columns) == 1 and len(rows) <= 10 and _question_expects_listing(task.question):
         return AnswerTable(columns=list(columns), rows=[list(row) for row in rows])
 
     return None
@@ -617,6 +755,13 @@ class ReActAgent:
                 continue
 
             try:
+                if model_step.action == "answer":
+                    model_step = ModelStep(
+                        thought=model_step.thought,
+                        action=model_step.action,
+                        action_input=_sanitize_answer_action_input(task, model_step.action_input),
+                        raw_response=model_step.raw_response,
+                    )
                 tool_result = self.tools.execute(
                     task,
                     model_step.action,
