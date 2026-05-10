@@ -1,0 +1,669 @@
+{
+  "task_id": "task_163",
+  "answer": {
+    "columns": [
+      "expense_type",
+      "total_value"
+    ],
+    "rows": [
+      [
+        "Advertisement",
+        54.25
+      ],
+      [
+        "Food",
+        121.14
+      ]
+    ]
+  },
+  "steps": [
+    {
+      "step_index": 1,
+      "thought": "I need to explore the context directory to understand what files are available for this task about expenses for the 'October Meeting' event.",
+      "action": "list_context",
+      "action_input": {
+        "max_depth": 4
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to explore the context directory to understand what files are available for this task about expenses for the 'October Meeting' event.\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "list_context",
+        "content": {
+          "root": "/home/tako/urp/react/data/public/input/task_163/context",
+          "entries": [
+            {
+              "path": "csv",
+              "kind": "dir",
+              "size": null
+            },
+            {
+              "path": "csv/expense.csv",
+              "kind": "file",
+              "size": 2980
+            },
+            {
+              "path": "db",
+              "kind": "dir",
+              "size": null
+            },
+            {
+              "path": "db/event.db",
+              "kind": "file",
+              "size": 20480
+            },
+            {
+              "path": "json",
+              "kind": "dir",
+              "size": null
+            },
+            {
+              "path": "json/budget.json",
+              "kind": "file",
+              "size": 11786
+            },
+            {
+              "path": "knowledge.md",
+              "kind": "file",
+              "size": 5459
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 2,
+      "thought": "I see structured data files: expense.csv, event.db (SQLite), and budget.json. I should scan the CSV and JSON files to build a SQLite database for querying.",
+      "action": "scan",
+      "action_input": {
+        "sources": [
+          "csv/expense.csv",
+          "json/budget.json"
+        ]
+      },
+      "raw_response": "```json\n{\"thought\":\"I see structured data files: expense.csv, event.db (SQLite), and budget.json. I should scan the CSV and JSON files to build a SQLite database for querying.\",\"action\":\"scan\",\"action_input\":{\"sources\":[\"csv/expense.csv\",\"json/budget.json\"]}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "scan",
+        "content": {
+          "database_type": "sqlite",
+          "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite",
+          "table_count": 2,
+          "tables": [
+            {
+              "source_path": "csv/expense.csv",
+              "source_type": "csv",
+              "table_name": "expense",
+              "columns": [
+                "expense_id",
+                "expense_description",
+                "expense_date",
+                "cost",
+                "approved",
+                "link_to_member",
+                "link_to_budget"
+              ],
+              "row_count": 32
+            },
+            {
+              "source_path": "json/budget.json",
+              "source_type": "json",
+              "table_name": "budget",
+              "columns": [
+                "budget_id",
+                "category",
+                "spent",
+                "remaining",
+                "amount",
+                "event_status",
+                "link_to_event"
+              ],
+              "row_count": 52
+            }
+          ],
+          "table_names": [
+            "expense",
+            "budget"
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 3,
+      "thought": "I have scanned the CSV and JSON files. Now I need to inspect the schema of the scanned database and also check the event.db SQLite file to understand the event structure.",
+      "action": "inspect_sqlite_schema",
+      "action_input": {
+        "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite"
+      },
+      "raw_response": "```json\n{\"thought\":\"I have scanned the CSV and JSON files. Now I need to inspect the schema of the scanned database and also check the event.db SQLite file to understand the event structure.\",\"action\":\"inspect_sqlite_schema\",\"action_input\":{\"path\":\"/tmp/data_agent_structured_ie_rqnxn.sqlite\"}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "inspect_sqlite_schema",
+        "content": {
+          "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite",
+          "tables": [
+            {
+              "name": "budget",
+              "create_sql": "CREATE TABLE \"budget\" (\"budget_id\" TEXT, \"category\" TEXT, \"spent\" TEXT, \"remaining\" TEXT, \"amount\" TEXT, \"event_status\" TEXT, \"link_to_event\" TEXT)",
+              "columns": [
+                {
+                  "cid": 0,
+                  "name": "budget_id",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 1,
+                  "name": "category",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 2,
+                  "name": "spent",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 3,
+                  "name": "remaining",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 4,
+                  "name": "amount",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 5,
+                  "name": "event_status",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 6,
+                  "name": "link_to_event",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                }
+              ],
+              "primary_keys": [],
+              "foreign_keys": []
+            },
+            {
+              "name": "expense",
+              "create_sql": "CREATE TABLE \"expense\" (\"expense_id\" TEXT, \"expense_description\" TEXT, \"expense_date\" TEXT, \"cost\" TEXT, \"approved\" TEXT, \"link_to_member\" TEXT, \"link_to_budget\" TEXT)",
+              "columns": [
+                {
+                  "cid": 0,
+                  "name": "expense_id",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 1,
+                  "name": "expense_description",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 2,
+                  "name": "expense_date",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 3,
+                  "name": "cost",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 4,
+                  "name": "approved",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 5,
+                  "name": "link_to_member",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 6,
+                  "name": "link_to_budget",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                }
+              ],
+              "primary_keys": [],
+              "foreign_keys": []
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 4,
+      "thought": "I need to check the event.db SQLite file to understand the event structure and find the 'October Meeting' event.",
+      "action": "inspect_sqlite_schema",
+      "action_input": {
+        "path": "db/event.db"
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to check the event.db SQLite file to understand the event structure and find the 'October Meeting' event.\",\"action\":\"inspect_sqlite_schema\",\"action_input\":{\"path\":\"db/event.db\"}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "inspect_sqlite_schema",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+          "tables": [
+            {
+              "name": "event",
+              "create_sql": "CREATE TABLE event\n(\n    event_id   TEXT\n        constraint event_pk\n            primary key,\n    event_name TEXT,\n    event_date TEXT,\n    type       TEXT,\n    notes      TEXT,\n    location   TEXT,\n    status     TEXT\n)",
+              "columns": [
+                {
+                  "cid": 0,
+                  "name": "event_id",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 1
+                },
+                {
+                  "cid": 1,
+                  "name": "event_name",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 2,
+                  "name": "event_date",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 3,
+                  "name": "type",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 4,
+                  "name": "notes",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 5,
+                  "name": "location",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 6,
+                  "name": "status",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                }
+              ],
+              "primary_keys": [
+                "event_id"
+              ],
+              "foreign_keys": []
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 5,
+      "thought": "I need to find expenses for 'October Meeting' event. I'll use the SQL pipeline to handle the joins between event, budget, and expense tables with the condition for approved expenses.",
+      "action": "run_sql_pipeline",
+      "action_input": {
+        "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+        "question": "Find expense types and total approved costs for October Meeting event",
+        "num_candidates": 2,
+        "revision_rounds": 1
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to find expenses for 'October Meeting' event. I'll use the SQL pipeline to handle the joins between event, budget, and expense tables with the condition for approved expenses.\",\"action\":\"run_sql_pipeline\",\"action_input\":{\"path\":\"/home/tako/urp/react/data/public/input/task_163/context/db/event.db\",\"question\":\"Find expense types and total approved costs for October Meeting event\",\"num_candidates\":2,\"revision_rounds\":1}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "run_sql_pipeline",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+          "selected_sql": "SELECT type, COUNT(*) as total_approved_costs FROM event WHERE event_name = 'October Meeting' GROUP BY type",
+          "selected_acceptability": "weak_accept",
+          "recommended_next_action": "execute_context_sql",
+          "schema_link_summary": {
+            "relevant_tables": [
+              "event"
+            ],
+            "join_hint_count": 0,
+            "value_hint_count": 2,
+            "knowledge_hint_count": 8,
+            "warnings": []
+          },
+          "verification_summary": {
+            "best_candidate_index": 0,
+            "best_candidate_acceptability": "weak_accept",
+            "best_candidate_sql": "SELECT type, COUNT(*) as total_approved_costs FROM event WHERE (event_name = 'October Meeting' OR event_name = 'Officers meeting - October') AND status = 'Approved' GROUP BY type",
+            "candidate_count": 2,
+            "best_candidate_warnings": [
+              "empty_result",
+              "result_too_wide_for_single_value_question"
+            ],
+            "best_candidate_errors": [],
+            "best_candidate_score": 0.07
+          },
+          "revision_count": 1
+        },
+        "retry_hint": "The SQL pipeline already selected a candidate. Prefer executing that SQL next instead of starting a new SQL planning loop.",
+        "suggested_next_actions": [
+          "execute_context_sql"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "step_index": 6,
+      "thought": "The SQL pipeline returned a selected SQL candidate. I should execute that SQL next to get the results.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+        "sql": "SELECT type, COUNT(*) as total_approved_costs FROM event WHERE (event_name = 'October Meeting' OR event_name = 'Officers meeting - October') AND status = 'Approved' GROUP BY type",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"The SQL pipeline returned a selected SQL candidate. I should execute that SQL next to get the results.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/home/tako/urp/react/data/public/input/task_163/context/db/event.db\",\"sql\":\"SELECT type, COUNT(*) as total_approved_costs FROM event WHERE (event_name = 'October Meeting' OR event_name = 'Officers meeting - October') AND status = 'Approved' GROUP BY type\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+          "columns": [
+            "type",
+            "total_approved_costs"
+          ],
+          "rows": [],
+          "row_count": 0,
+          "truncated": false
+        },
+        "retry_hint": "The selected SQL executed but returned no rows. Prefer inspecting schema or rerunning the SQL pipeline instead of drifting into repeated direct SQL guesses.",
+        "suggested_next_actions": [
+          "inspect_sqlite_schema",
+          "run_sql_pipeline"
+        ],
+        "selected_sql_executed": true
+      },
+      "ok": true
+    },
+    {
+      "step_index": 7,
+      "thought": "",
+      "action": "__error__",
+      "action_input": {},
+      "raw_response": "```json\n{\"thought\":\"The SQL returned empty results. I need to explore the data to understand the structure better. Let me check what events exist and how expenses link to events.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/home/tako/urp/react/data/public/input/task_163/context/db/event.db\",\"sql\":\"SELECT * FROM event WHERE event_name LIKE '%October%','limit\":200}}\n```",
+      "observation": {
+        "ok": false,
+        "error_type": "parse_error",
+        "error": "Expecting ',' delimiter: line 1 column 365 (char 364)",
+        "retry_hint": "Return exactly one JSON object inside one ```json fenced block. Use keys `thought`, `action`, and `action_input`. `action_input` must be a JSON object, even when empty."
+      },
+      "ok": false
+    },
+    {
+      "step_index": 8,
+      "thought": "I made a syntax error in my SQL query. Let me fix it and query for October events properly.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+        "sql": "SELECT * FROM event WHERE event_name LIKE '%October%'",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"I made a syntax error in my SQL query. Let me fix it and query for October events properly.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/home/tako/urp/react/data/public/input/task_163/context/db/event.db\",\"sql\":\"SELECT * FROM event WHERE event_name LIKE '%October%'\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+          "columns": [
+            "event_id",
+            "event_name",
+            "event_date",
+            "type",
+            "notes",
+            "location",
+            "status"
+          ],
+          "rows": [
+            [
+              "recEVTik3MlqbvLFi",
+              "October Speaker",
+              "2019-10-22T12:00:00",
+              "Guest Speaker",
+              null,
+              "MU 215",
+              "Closed"
+            ],
+            [
+              "recc8dizaKrSz3GmH",
+              "Officers meeting - October",
+              "2019-10-08T09:30:00",
+              "Meeting",
+              null,
+              null,
+              "Closed"
+            ],
+            [
+              "recggMW2eyCYceNcy",
+              "October Meeting",
+              "2019-10-08T12:00:00",
+              "Meeting",
+              null,
+              "MU 215",
+              "Closed"
+            ]
+          ],
+          "row_count": 3,
+          "truncated": false
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 9,
+      "thought": "I found the 'October Meeting' event with event_id 'recggMW2eyCYceNcy'. Now I need to find expenses linked to this event through the budget table. Let me query the expense table joined with budget to find approved expenses for this event.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+        "sql": "SELECT e.expense_description, e.cost, e.approved, b.category FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id JOIN event ev ON b.link_to_event = ev.event_id WHERE ev.event_name = 'October Meeting' AND e.approved = 'true'",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"I found the 'October Meeting' event with event_id 'recggMW2eyCYceNcy'. Now I need to find expenses linked to this event through the budget table. Let me query the expense table joined with budget to find approved expenses for this event.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/home/tako/urp/react/data/public/input/task_163/context/db/event.db\",\"sql\":\"SELECT e.expense_description, e.cost, e.approved, b.category FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id JOIN event ev ON b.link_to_event = ev.event_id WHERE ev.event_name = 'October Meeting' AND e.approved = 'true'\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": false,
+        "tool": "execute_context_sql",
+        "error_type": "tool_error",
+        "error": "no such table: expense",
+        "error_details": {
+          "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+          "sql": "SELECT e.expense_description, e.cost, e.approved, b.category FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id JOIN event ev ON b.link_to_event = ev.event_id WHERE ev.event_name = 'October Meeting' AND e.approved = 'true'",
+          "error": "no such table: expense",
+          "available_tables": [
+            "event"
+          ]
+        },
+        "path": "/home/tako/urp/react/data/public/input/task_163/context/db/event.db",
+        "sql": "SELECT e.expense_description, e.cost, e.approved, b.category FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id JOIN event ev ON b.link_to_event = ev.event_id WHERE ev.event_name = 'October Meeting' AND e.approved = 'true'",
+        "available_tables": [
+          "event"
+        ],
+        "retry_hint": "Inspect the database schema again and only use observed table and column names.",
+        "diagnosis": "The SQL references a table or column that does not exist in the selected database."
+      },
+      "ok": false
+    },
+    {
+      "step_index": 10,
+      "thought": "The expense and budget tables are in the scanned SQLite database, not in event.db. I need to query the scanned database and join with event.db to find expenses for October Meeting.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite",
+        "sql": "SELECT e.expense_description, e.cost, e.approved, b.category FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id WHERE b.link_to_event = 'recggMW2eyCYceNcy' AND e.approved = 'true'",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"The expense and budget tables are in the scanned SQLite database, not in event.db. I need to query the scanned database and join with event.db to find expenses for October Meeting.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/tmp/data_agent_structured_ie_rqnxn.sqlite\",\"sql\":\"SELECT e.expense_description, e.cost, e.approved, b.category FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id WHERE b.link_to_event = 'recggMW2eyCYceNcy' AND e.approved = 'true'\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite",
+          "columns": [
+            "expense_description",
+            "cost",
+            "approved",
+            "category"
+          ],
+          "rows": [
+            [
+              "Posters",
+              "54.25",
+              "true",
+              "Advertisement"
+            ],
+            [
+              "Water, chips, cookies",
+              "69.33",
+              "true",
+              "Food"
+            ],
+            [
+              "Pizza",
+              "51.81",
+              "true",
+              "Food"
+            ]
+          ],
+          "row_count": 3,
+          "truncated": false
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 11,
+      "thought": "I found the approved expenses for October Meeting. Now I need to aggregate by category to get the total value for each expense type.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite",
+        "sql": "SELECT b.category, SUM(CAST(e.cost AS REAL)) as total_value FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id WHERE b.link_to_event = 'recggMW2eyCYceNcy' AND e.approved = 'true' GROUP BY b.category",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"I found the approved expenses for October Meeting. Now I need to aggregate by category to get the total value for each expense type.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/tmp/data_agent_structured_ie_rqnxn.sqlite\",\"sql\":\"SELECT b.category, SUM(CAST(e.cost AS REAL)) as total_value FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id WHERE b.link_to_event = 'recggMW2eyCYceNcy' AND e.approved = 'true' GROUP BY b.category\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/tmp/data_agent_structured_ie_rqnxn.sqlite",
+          "columns": [
+            "category",
+            "total_value"
+          ],
+          "rows": [
+            [
+              "Advertisement",
+              54.25
+            ],
+            [
+              "Food",
+              121.14
+            ]
+          ],
+          "row_count": 2,
+          "truncated": false
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 12,
+      "thought": "I have the final result showing expense types and their total approved values for October Meeting. The data shows Advertisement (54.25) and Food (121.14). This directly answers the question.",
+      "action": "answer",
+      "action_input": {
+        "columns": [
+          "expense_type",
+          "total_value"
+        ],
+        "rows": [
+          [
+            "Advertisement",
+            54.25
+          ],
+          [
+            "Food",
+            121.14
+          ]
+        ]
+      },
+      "raw_response": "```json\n{\"thought\":\"I have the final result showing expense types and their total approved values for October Meeting. The data shows Advertisement (54.25) and Food (121.14). This directly answers the question.\",\"action\":\"answer\",\"action_input\":{\"columns\":[\"expense_type\",\"total_value\"],\"rows\":[[\"Advertisement\",54.25],[\"Food\",121.14]]}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "answer",
+        "content": {
+          "status": "submitted",
+          "column_count": 2,
+          "row_count": 2
+        }
+      },
+      "ok": true
+    }
+  ],
+  "failure_reason": null,
+  "succeeded": true,
+  "e2e_elapsed_seconds": 152.889
+}

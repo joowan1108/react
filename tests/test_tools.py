@@ -162,6 +162,32 @@ class TestReadJson:
 
 
 # ---------------------------------------------------------------------------
+# scan
+# ---------------------------------------------------------------------------
+
+
+class TestScan:
+    def test_type_alias_sources_include_existing_structured_files(self, task: PublicTask, ctx: Path, registry):
+        csv_dir = ctx / "csv"
+        csv_dir.mkdir()
+        (csv_dir / "sales.csv").write_text("id,amount\n1,100\n2,200\n", encoding="utf-8")
+
+        result = registry.execute(task, "scan", {"sources": ["csv", "json"]})
+        assert result.ok
+        assert result.content["table_count"] == 1
+        assert result.content["table_names"] == ["sales"]
+
+    def test_type_alias_sources_find_root_level_csv_files(self, task: PublicTask, ctx: Path, registry):
+        (ctx / "patient_sex.csv").write_text("ID,SEX\n1,M\n2,F\n", encoding="utf-8")
+
+        result = registry.execute(task, "scan", {"sources": ["csv"]})
+        assert result.ok
+        assert result.content["table_count"] == 1
+        assert result.content["tables"][0]["source_path"] == "patient_sex.csv"
+        assert result.content["table_names"] == ["patient_sex"]
+
+
+# ---------------------------------------------------------------------------
 # read_doc
 # ---------------------------------------------------------------------------
 

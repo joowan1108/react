@@ -15,6 +15,11 @@ from data_agent_baseline.tools.filesystem import (
 )
 
 TABLE_NAME_SANITIZER = re.compile(r"[^0-9A-Za-z_]+")
+STRUCTURED_SOURCE_ALIASES: dict[str, tuple[str, ...]] = {
+    "csv": (".csv",),
+    "json": (".json",),
+    "structured": (".csv", ".json"),
+}
 
 
 def iter_source_paths(task: PublicTask, sources: list[str] | None) -> list[Path]:
@@ -23,12 +28,36 @@ def iter_source_paths(task: PublicTask, sources: list[str] | None) -> list[Path]
         return sorted(path for path in task.context_dir.rglob("*") if path.is_file())
 
     resolved_paths: list[Path] = []
+    seen_paths: set[Path] = set()
     for source in sources:
+        normalized_source = source.strip().casefold()
+        alias_suffixes = STRUCTURED_SOURCE_ALIASES.get(normalized_source)
+        if alias_suffixes is not None:
+            for path in sorted(
+                candidate
+                for candidate in task.context_dir.rglob("*")
+                if candidate.is_file() and candidate.suffix.casefold() in alias_suffixes
+            ):
+                resolved = path.resolve()
+                if resolved in seen_paths:
+                    continue
+                resolved_paths.append(path)
+                seen_paths.add(resolved)
+            continue
+
         resolved = resolve_context_path(task, source)
         if resolved.is_file():
-            resolved_paths.append(resolved)
+            resolved_abs = resolved.resolve()
+            if resolved_abs not in seen_paths:
+                resolved_paths.append(resolved)
+                seen_paths.add(resolved_abs)
             continue
-        resolved_paths.extend(sorted(path for path in resolved.rglob("*") if path.is_file()))
+        for path in sorted(candidate for candidate in resolved.rglob("*") if candidate.is_file()):
+            resolved_abs = path.resolve()
+            if resolved_abs in seen_paths:
+                continue
+            resolved_paths.append(path)
+            seen_paths.add(resolved_abs)
     return resolved_paths
 
 
