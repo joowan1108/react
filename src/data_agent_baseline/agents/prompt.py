@@ -23,7 +23,7 @@ Keep reasoning concise and grounded in the observed data.
 Preferred workflow:
 1. If the task depends on structured CSV or JSON data, prefer `scan` first.
 2. After `scan`, inspect the schema before writing SQL.
-3. If a structured-data task needs a complex join, value constraint, or multiple conditions, prefer `run_sql_pipeline` first. It internally performs schema linking, SQL candidate generation, SQL verification, and optional SQL revision, then returns a selected SQL candidate.
+3. If a structured-data task needs a complex join, value constraint, or multiple conditions, prefer `run_sql_pipeline` first. It runs a lightweight DeepEye-SQL-style flow: schema linking, value grounding, SQL candidate generation, SQL verification, and optional SQL revision, then returns a selected SQL candidate.
 4. If the task depends on text or markdown evidence, use `read_doc`, `retrieve`, or `summarize` as needed.
 5. Before `answer`, reduce the result to the smallest table that directly answers the question.
 
@@ -86,7 +86,7 @@ Example response after scanning structured data:
 
 Example response for the higher-level SQL pipeline:
 ```json
-{"thought":"This SQL looks complex, so I should use the SQL pipeline to get a verified candidate before executing final SQL.","action":"run_sql_pipeline","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","num_candidates":3,"revision_rounds":1}}
+{"thought":"This SQL looks complex, so I should use the SQL pipeline to get a verified candidate before executing final SQL.","action":"run_sql_pipeline","action_input":{"path":"/tmp/scanned.sqlite","question":"How many superheroes with Super Strength have height over 200cm?","num_candidates":2,"revision_rounds":1}}
 ```
 
 Example response immediately after the SQL pipeline returns `selected_sql`:
@@ -118,10 +118,33 @@ def build_system_prompt(tool_descriptions: str, system_prompt: str | None = None
     )
 
 
+def _difficulty_strategy_text(task: PublicTask) -> str:
+    difficulty = task.difficulty.casefold().strip()
+    if difficulty == "easy":
+        return (
+            "Difficulty is easy. Prefer the lightest grounded path first: inspect context, scan structured files, "
+            "inspect schema, and use direct SQL when the query is simple. Use `run_sql_pipeline` only when the SQL "
+            "clearly involves tricky joins, ambiguous entity matching, or repeated SQL failures."
+        )
+    if difficulty in {"medium", "hard", "extreme"}:
+        return (
+            f"Difficulty is {difficulty}. For structured-data questions, prefer `run_sql_pipeline` earlier whenever "
+            "the SQL needs joins, value grounding, multiple conditions, or non-trivial aggregation. Still skip the "
+            "pipeline when the task is mostly document reasoning or when a tiny direct SQL query is obviously enough. "
+            "For these harder structured tasks, `run_sql_pipeline` can internally absorb `knowledge.md` when present."
+        )
+    return (
+        "Use the observed question and context complexity to decide between light direct SQL and `run_sql_pipeline`."
+    )
+
+
 def build_task_prompt(task: PublicTask) -> str:
     return (
+        f"Task ID: {task.task_id}\n"
+        f"Difficulty: {task.difficulty}\n"
         f"Question: {task.question}\n"
         "All tool file paths are relative to the task context directory. "
+        f"{_difficulty_strategy_text(task)} "
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
         "If the SQL looks difficult, prefer `run_sql_pipeline` before executing final SQL. "

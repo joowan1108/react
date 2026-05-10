@@ -203,11 +203,17 @@ def _run_sql_pipeline(
 
     path = _resolve_sqlite_tool_path(task, str(action_input["path"]))
     question = str(action_input["question"])
-    num_candidates = int(action_input.get("num_candidates", 3))
+    num_candidates = int(action_input.get("num_candidates", 2))
     revision_rounds = int(action_input.get("revision_rounds", 1))
     verify_limit = int(action_input.get("verify_limit", 50))
     raw_schema_link_context = action_input.get("schema_link_context")
     schema_link_context = raw_schema_link_context if isinstance(raw_schema_link_context, dict) else None
+    knowledge_text = None
+    if task.difficulty.casefold().strip() in {"medium", "hard", "extreme"}:
+        try:
+            knowledge_text = load_document_text(task, "knowledge.md")[:4000]
+        except FileNotFoundError:
+            knowledge_text = None
 
     content = run_sql_pipeline_with_model(
         model,
@@ -217,6 +223,7 @@ def _run_sql_pipeline(
         revision_rounds=revision_rounds,
         verify_limit=verify_limit,
         schema_link_context=schema_link_context,
+        knowledge_text=knowledge_text,
     )
     return ToolExecutionResult(ok=True, content=content)
 
@@ -350,7 +357,7 @@ def create_default_tool_registry() -> ToolRegistry:
             input_schema={
                 "path": "/tmp/scanned.sqlite",
                 "question": "How many superheroes with Super Strength have height over 200cm?",
-                "num_candidates": 3,
+                "num_candidates": 2,
                 "revision_rounds": 1,
                 "verify_limit": 50,
             },

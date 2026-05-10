@@ -32,6 +32,18 @@ LIST_HINTS = (
     "give me",
 )
 
+ORDERING_HINTS = (
+    "top ",
+    "highest",
+    "lowest",
+    "largest",
+    "smallest",
+    "latest",
+    "earliest",
+    "first",
+    "last",
+)
+
 TABLE_REF_RE = re.compile(
     r"\b(?:from|join)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:as\s+)?[A-Za-z_][A-Za-z0-9_]*)?",
     re.IGNORECASE,
@@ -93,6 +105,15 @@ def _has_group_by(sql: str) -> bool:
     return " group by " in f" {sql.casefold()} "
 
 
+def _question_expects_ordering(question: str) -> bool:
+    lowered = question.casefold()
+    return any(marker in lowered for marker in ORDERING_HINTS)
+
+
+def _has_order_by(sql: str) -> bool:
+    return " order by " in f" {sql.casefold()} "
+
+
 def _check_schema_link_consistency(
     *,
     sql: str,
@@ -104,6 +125,7 @@ def _check_schema_link_consistency(
         "uses_only_relevant_tables": None,
         "uses_value_hints": None,
         "grouping_matches_question": None,
+        "ordering_matches_question": None,
         "unexpected_tables": [],
         "missing_value_hints": [],
     }
@@ -120,6 +142,12 @@ def _check_schema_link_consistency(
         warnings.append("missing_group_by_for_grouping_question")
     elif not expects_grouping and has_group_by and not _question_expects_single_value(question):
         warnings.append("unexpected_group_by_for_non_grouping_question")
+
+    expects_ordering = _question_expects_ordering(question)
+    has_order_by = _has_order_by(sql)
+    logic_checks["ordering_matches_question"] = (expects_ordering == has_order_by) or (not expects_ordering and not has_order_by)
+    if expects_ordering and not has_order_by:
+        warnings.append("missing_order_by_for_ranking_question")
 
     if not schema_link_context:
         return logic_checks, warnings
@@ -241,6 +269,8 @@ def _score_candidate(
         score -= 0.12
     if logic_checks.get("grouping_matches_question") is False:
         score -= 0.15
+    if logic_checks.get("ordering_matches_question") is False:
+        score -= 0.12
 
     score -= 0.04 * len(warnings)
     return round(max(0.0, min(1.0, score)), 2)

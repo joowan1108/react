@@ -16,8 +16,11 @@ from pathlib import Path
 import pytest
 
 from data_agent_baseline.agents.model import ScriptedModelAdapter
+from data_agent_baseline.agents.prompt import build_task_prompt
+from data_agent_baseline.agents.react import ReActAgent
 from data_agent_baseline.benchmark.schema import PublicTask, TaskAssets, TaskRecord
 from data_agent_baseline.tools.registry import ToolExecutionResult, create_default_tool_registry
+from data_agent_baseline.tools.sql_linking import build_schema_link_context
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +31,12 @@ from data_agent_baseline.tools.registry import ToolExecutionResult, create_defau
 def make_task(context_dir: Path, task_id: str = "test-001") -> PublicTask:
     """PublicTask를 가짜 디렉토리로 직접 생성."""
     record = TaskRecord(task_id=task_id, difficulty="easy", question="What is the answer?")
+    assets = TaskAssets(task_dir=context_dir.parent, context_dir=context_dir)
+    return PublicTask(record=record, assets=assets)
+
+
+def make_task_with_difficulty(context_dir: Path, difficulty: str) -> PublicTask:
+    record = TaskRecord(task_id=f"test-{difficulty}", difficulty=difficulty, question="What is the answer?")
     assets = TaskAssets(task_dir=context_dir.parent, context_dir=context_dir)
     return PublicTask(record=record, assets=assets)
 
@@ -407,6 +416,34 @@ class TestVerifySqlCandidates:
         assert weak["acceptability"] == "reject"
 
 
+class TestSchemaLinkContext:
+    def test_retrieves_grounded_text_value_hints(self, sqlite_db: Path):
+        conn = sqlite3.connect(sqlite_db)
+        conn.execute("INSERT INTO products VALUES (1, 'Spanish Grand Prix Poster', 9.99)")
+        conn.commit()
+        conn.close()
+
+        context = build_schema_link_context(
+            question="How many products mention Spanish Grand Prix?",
+            database_path=str(sqlite_db),
+            schema_info={
+                "path": str(sqlite_db),
+                "tables": [
+                    {
+                        "name": "products",
+                        "create_sql": "CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL)",
+                        "foreign_keys": [],
+                    }
+                ],
+            },
+        )
+
+        retrieved_hints = context["retrieved_value_hints"]
+        assert retrieved_hints
+        assert any(hint["column"] == "name" for hint in retrieved_hints)
+        assert any("Spanish Grand Prix" in str(hint["value"]) for hint in retrieved_hints)
+
+
 # ---------------------------------------------------------------------------
 # execute_python
 # ---------------------------------------------------------------------------
@@ -503,3 +540,59 @@ class TestAnswer:
     def test_unknown_tool_raises(self, task: PublicTask, registry):
         with pytest.raises(KeyError):
             registry.execute(task, "nonexistent_tool", {})
+
+
+class TestDifficultyRouting:
+    def test_easy_prompt_prefers_light_path(self, ctx: Path):
+        task = make_task_with_difficulty(ctx, "easy")
+        prompt = build_task_prompt(task)
+        assert "Difficulty: easy" in prompt
+        assert "Prefer the lightest grounded path first" in prompt
+
+    def test_agent_does_not_bootstrap_knowledge(self, ctx: Path, registry):
+        (ctx / "knowledge.md").write_text("Important business context.")
+        task = make_task_with_difficulty(ctx, "hard")
+        agent = ReActAgent(model=ScriptedModelAdapter([]), tools=registry)
+        assert agent._build_initial_context_steps(task) == []
+
+    def test_hard_sql_pipeline_absorbs_knowledge(self, ctx: Path, registry):
+        db_path = ctx / "store.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL)")
+        conn.execute("INSERT INTO products VALUES (1, 'Widget', 9.99)")
+        conn.commit()
+        conn.close()
+
+        (ctx / "knowledge.md").write_text(
+            "Products use the name column for the customer-facing product title.",
+            encoding="utf-8",
+        )
+        task = make_task_with_difficulty(ctx, "hard")
+        model = ScriptedModelAdapter(
+            [
+                json.dumps(
+                    [
+                        {
+                            "sql": "SELECT COUNT(*) FROM products",
+                            "rationale": "simple aggregate candidate",
+                        }
+                    ]
+                )
+            ]
+        )
+
+        result = registry.execute(
+            task,
+            "run_sql_pipeline",
+            {
+                "path": "store.db",
+                "question": "How many products are there?",
+                "num_candidates": 1,
+                "revision_rounds": 0,
+            },
+            model=model,
+        )
+
+        assert result.ok
+        link_context = result.content["schema_link_context"]
+        assert isinstance(link_context.get("knowledge_hints"), list)

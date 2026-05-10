@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
+
+from data_agent_baseline.tools.sqlite import search_distinct_text_column_values
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?\b")
 QUOTED_TEXT_RE = re.compile(r"'([^']+)'|\"([^\"]+)\"")
+TITLE_CASE_PHRASE_RE = re.compile(
+    r"\b(?:\d{4}\s+)?[A-Z][A-Za-z0-9_.-]*(?:\s+(?:[A-Z][A-Za-z0-9_.-]*|of|the|and|de|la|&)){1,5}\b"
+)
 
 TEXT_VALUE_COLUMN_SUFFIXES = (
     "name",
@@ -44,9 +50,49 @@ NUMERIC_VALUE_COLUMN_TOKENS = (
     "sum",
 )
 
+VALUE_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "for",
+    "in",
+    "of",
+    "or",
+    "the",
+    "to",
+    "with",
+}
+
+KNOWLEDGE_LINE_STOPWORDS = VALUE_STOPWORDS | {
+    "is",
+    "are",
+    "was",
+    "were",
+    "from",
+    "into",
+    "than",
+    "that",
+    "this",
+}
+
 
 def _tokenize(text: str) -> list[str]:
     return [token.casefold() for token in TOKEN_RE.findall(text)]
+
+
+def _dedupe_preserve_order(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in items:
+        normalized = item.strip()
+        if not normalized:
+            continue
+        key = normalized.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(normalized)
+    return ordered
 
 
 def _normalize_name_tokens(name: str) -> list[str]:
@@ -120,6 +166,85 @@ def _score_numeric_value_column(column_ref: dict[str, str], context_tokens: set[
     if column_name == "id" or column_name.endswith("_id") or column_name.startswith("link_to_"):
         score -= 3
     return score
+
+
+def _extract_named_value_candidates(question: str) -> list[str]:
+    candidates: list[str] = []
+    for match in QUOTED_TEXT_RE.finditer(question):
+        value = match.group(1) or match.group(2)
+        if value:
+            candidates.append(value.strip())
+
+    for match in TITLE_CASE_PHRASE_RE.finditer(question):
+        phrase = match.group(0).strip(" .,!?:;")
+        tokens = [token for token in _tokenize(phrase) if token not in VALUE_STOPWORDS]
+        if len(tokens) < 2:
+            continue
+        candidates.append(phrase)
+
+    return _dedupe_preserve_order(candidates)
+
+
+def _extract_knowledge_hints(
+    *,
+    question: str,
+    schema_tables: list[dict[str, object]],
+    knowledge_text: str | None,
+    max_hints: int = 8,
+) -> list[dict[str, str]]:
+    if not knowledge_text:
+        return []
+
+    question_tokens = {token for token in _tokenize(question) if token not in KNOWLEDGE_LINE_STOPWORDS}
+    if not question_tokens:
+        return []
+
+    schema_terms: set[str] = set()
+    for table_entry in schema_tables:
+        if not isinstance(table_entry, dict):
+            continue
+        table_name = str(table_entry.get("name") or "")
+        if table_name:
+            schema_terms.update(_normalize_name_tokens(table_name))
+        for column in _extract_table_columns(str(table_entry.get("create_sql") or "")):
+            schema_terms.update(_normalize_name_tokens(column))
+
+    scored_hints: list[tuple[int, dict[str, str]]] = []
+    for raw_line in knowledge_text.splitlines():
+        line = raw_line.strip()
+        if len(line) < 12:
+            continue
+        line_tokens = {token for token in _tokenize(line) if token not in KNOWLEDGE_LINE_STOPWORDS}
+        if not line_tokens:
+            continue
+        question_overlap = question_tokens & line_tokens
+        schema_overlap = schema_terms & line_tokens
+        score = 3 * len(question_overlap) + 2 * len(schema_overlap)
+        if score <= 0:
+            continue
+        scored_hints.append(
+            (
+                score,
+                {
+                    "line": line[:240],
+                    "reason": "knowledge.md line overlaps with question and schema terms",
+                },
+            )
+        )
+
+    scored_hints.sort(key=lambda item: item[0], reverse=True)
+    hints: list[dict[str, str]] = []
+    seen_lines: set[str] = set()
+    for _, hint in scored_hints:
+        line = hint["line"]
+        key = line.casefold()
+        if key in seen_lines:
+            continue
+        seen_lines.add(key)
+        hints.append(hint)
+        if len(hints) >= max_hints:
+            break
+    return hints
 
 
 def _guess_join_hints(
@@ -371,11 +496,105 @@ def _extract_value_hints(question: str, relevant_columns: list[dict[str, str]]) 
     return hints
 
 
+def _retrieve_value_hints_from_database(
+    *,
+    question: str,
+    database_path: str,
+    relevant_columns: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    db_path = Path(database_path)
+    if not db_path.exists():
+        return []
+
+    retrieved_hints: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    for candidate_value in _extract_named_value_candidates(question):
+        search_terms = [token for token in _tokenize(candidate_value) if token not in VALUE_STOPWORDS]
+        if not search_terms:
+            continue
+        context_tokens = set(search_terms)
+        scored_columns = sorted(
+            (
+                (
+                    _score_text_value_column(column_ref, context_tokens),
+                    column_ref,
+                )
+                for column_ref in relevant_columns
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        matched_any = False
+        for score, column_ref in scored_columns[:6]:
+            if score <= 0:
+                continue
+            try:
+                matched_values = search_distinct_text_column_values(
+                    db_path,
+                    table=column_ref["table"],
+                    column=column_ref["column"],
+                    search_terms=search_terms,
+                    limit=3,
+                )
+            except Exception:
+                continue
+
+            for matched_value in matched_values:
+                key = (column_ref["table"], column_ref["column"], matched_value)
+                if key in seen:
+                    continue
+                seen.add(key)
+                matched_any = True
+                exact_match = matched_value.casefold() == candidate_value.casefold()
+                retrieved_hints.append(
+                    {
+                        "table": column_ref["table"],
+                        "column": column_ref["column"],
+                        "operator": "=",
+                        "value": matched_value,
+                        "question_value": candidate_value,
+                        "reason": "retrieved matching database value from likely text column",
+                        "confidence": 0.96 if exact_match else 0.84,
+                    }
+                )
+
+            if matched_any and len(retrieved_hints) >= 8:
+                return retrieved_hints
+
+        if matched_any:
+            continue
+
+        for score, column_ref in scored_columns[:2]:
+            if score <= 0:
+                continue
+            key = (column_ref["table"], column_ref["column"], candidate_value)
+            if key in seen:
+                continue
+            seen.add(key)
+            retrieved_hints.append(
+                {
+                    "table": column_ref["table"],
+                    "column": column_ref["column"],
+                    "operator": "=",
+                    "value": candidate_value,
+                    "question_value": candidate_value,
+                    "reason": "unquoted entity phrase from question matched to likely text column",
+                    "confidence": 0.58,
+                }
+            )
+            if len(retrieved_hints) >= 8:
+                return retrieved_hints
+
+    return retrieved_hints
+
+
 def build_schema_link_context(
     *,
     question: str,
     database_path: str,
     schema_info: dict[str, object],
+    knowledge_text: str | None = None,
 ) -> dict[str, object]:
     question_tokens = set(_tokenize(question))
     tables = schema_info.get("tables")
@@ -472,11 +691,40 @@ def build_schema_link_context(
         filtered_join_hints = join_hints
 
     value_hints = _extract_value_hints(question, relevant_columns)
+    retrieved_value_hints = _retrieve_value_hints_from_database(
+        question=question,
+        database_path=database_path,
+        relevant_columns=relevant_columns,
+    )
+    merged_value_hints = _dedupe_preserve_order(
+        [
+            f'{hint.get("table")}::{hint.get("column")}::{hint.get("value")}'
+            for hint in retrieved_value_hints + value_hints
+            if isinstance(hint, dict)
+        ]
+    )
+    if merged_value_hints:
+        deduped_hints: list[dict[str, Any]] = []
+        seen_hint_keys: set[str] = set()
+        for hint in retrieved_value_hints + value_hints:
+            if not isinstance(hint, dict):
+                continue
+            key = f'{hint.get("table")}::{hint.get("column")}::{hint.get("value")}'
+            if key in seen_hint_keys:
+                continue
+            seen_hint_keys.add(key)
+            deduped_hints.append(hint)
+        value_hints = deduped_hints
 
     ranked_relevant_tables = sorted(
         dict.fromkeys(relevant_tables),
         key=lambda name: table_scores.get(name, 0),
         reverse=True,
+    )
+    knowledge_hints = _extract_knowledge_hints(
+        question=question,
+        schema_tables=tables,
+        knowledge_text=knowledge_text,
     )
 
     return {
@@ -486,5 +734,7 @@ def build_schema_link_context(
         "relevant_columns": relevant_columns,
         "join_hints": filtered_join_hints,
         "value_hints": value_hints,
+        "retrieved_value_hints": retrieved_value_hints,
+        "knowledge_hints": knowledge_hints,
         "warnings": warnings,
     }

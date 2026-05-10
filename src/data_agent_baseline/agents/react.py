@@ -13,7 +13,6 @@ from data_agent_baseline.agents.prompt import (
 )
 from data_agent_baseline.agents.runtime import AgentRunResult, AgentRuntimeState, StepRecord
 from data_agent_baseline.benchmark.schema import PublicTask
-from data_agent_baseline.tools.filesystem import read_doc_preview
 from data_agent_baseline.tools.registry import ToolRegistry
 
 
@@ -239,6 +238,9 @@ def _summarize_run_sql_pipeline_content(content: dict[str, object]) -> dict[str,
             "value_hint_count": len(link_context.get("value_hints", []))
             if isinstance(link_context.get("value_hints"), list)
             else 0,
+            "knowledge_hint_count": len(link_context.get("knowledge_hints", []))
+            if isinstance(link_context.get("knowledge_hints"), list)
+            else 0,
             "warnings": link_context.get("warnings", []),
         }
 
@@ -365,35 +367,8 @@ class ReActAgent:
         self.system_prompt = system_prompt or REACT_SYSTEM_PROMPT
 
     def _build_initial_context_steps(self, task: PublicTask) -> list[StepRecord]:
-        candidate_paths = ["knowledge.md"]
-        initial_steps: list[StepRecord] = []
-
-        for relative_path in candidate_paths:
-            candidate = task.context_dir / relative_path
-            if not candidate.exists() or not candidate.is_file():
-                continue
-
-            preview = read_doc_preview(task, relative_path, max_chars=4000)
-            initial_steps.append(
-                StepRecord(
-                    step_index=0,
-                    thought="",
-                    action="__bootstrap_knowledge__",
-                    action_input={"path": relative_path, "max_chars": 4000},
-                    raw_response="",
-                    observation={
-                        "ok": True,
-                        "tool": "read_doc",
-                        "content": preview,
-                        "auto_context": True,
-                        "reason": "bootstrap_knowledge",
-                    },
-                    ok=True,
-                )
-            )
-            break
-
-        return initial_steps
+        del task
+        return []
 
     def _build_messages(self, task: PublicTask, state: AgentRuntimeState) -> list[ModelMessage]:
         system_content = build_system_prompt(

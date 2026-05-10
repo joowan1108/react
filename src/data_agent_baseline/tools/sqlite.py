@@ -8,6 +8,11 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     uri = f"file:{path.resolve().as_posix()}?mode=ro"
     return sqlite3.connect(uri, uri=True)
 
+
+def _quote_identifier(identifier: str) -> str:
+    escaped = identifier.replace('"', '""')
+    return f'"{escaped}"'
+
 def list_sqlite_table_names(path: Path) -> list[str]:
     with _connect_read_only(path) as conn:
         rows = conn.execute(
@@ -84,6 +89,41 @@ def inspect_sqlite_schema(path: Path) -> dict[str, object]:
         "path": str(path),
         "tables": tables,
     }
+
+
+def search_distinct_text_column_values(
+    path: Path,
+    *,
+    table: str,
+    column: str,
+    search_terms: list[str],
+    limit: int = 5,
+) -> list[str]:
+    normalized_terms = [term.strip().casefold() for term in search_terms if term and term.strip()]
+    if not normalized_terms:
+        return []
+
+    quoted_table = _quote_identifier(table)
+    quoted_column = _quote_identifier(column)
+    where_clauses = [
+        f"LOWER(CAST({quoted_column} AS TEXT)) LIKE ?"
+        for _ in normalized_terms
+    ]
+    sql = (
+        f"SELECT DISTINCT CAST({quoted_column} AS TEXT) AS value "
+        f"FROM {quoted_table} "
+        f"WHERE {quoted_column} IS NOT NULL "
+        f"AND TRIM(CAST({quoted_column} AS TEXT)) <> '' "
+        f"AND {' AND '.join(where_clauses)} "
+        f"ORDER BY LENGTH(CAST({quoted_column} AS TEXT)) ASC, value ASC "
+        f"LIMIT ?"
+    )
+    parameters = [f"%{term}%" for term in normalized_terms]
+    parameters.append(max(1, limit))
+
+    with _connect_read_only(path) as conn:
+        rows = conn.execute(sql, parameters).fetchall()
+    return [str(value) for (value,) in rows if value is not None]
 
 
 def execute_read_only_sql(path: Path, sql: str, *, limit: int = 200) -> dict[str, object]:

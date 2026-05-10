@@ -6,6 +6,17 @@ from typing import Any
 from data_agent_baseline.agents.model import ModelAdapter, ModelMessage
 
 
+def _infer_answer_shape(question: str) -> str:
+    lowered = question.casefold()
+    if any(marker in lowered for marker in ("how many", "count", "number of", "average", "avg", "sum", "maximum", "minimum", "max", "min")):
+        return "single_value"
+    if any(marker in lowered for marker in (" for each ", " grouped by ", " group by ", " by ", " per ", " each ")):
+        return "grouped_rows"
+    if any(marker in lowered for marker in ("top ", "highest", "lowest", "latest", "earliest", "first", "last")):
+        return "ranked_rows"
+    return "rows"
+
+
 def _render_schema(schema_info: dict[str, object]) -> str:
     rendered_tables: list[str] = []
     raw_tables = schema_info.get("tables")
@@ -68,12 +79,17 @@ def build_generate_sql_candidate_messages(
     linking_text = ""
     if schema_link_context:
         linking_text = json.dumps(schema_link_context, ensure_ascii=False, indent=2)
+    answer_shape = _infer_answer_shape(question)
 
     instructions = [
         f"Generate up to {num_candidates} grounded read-only SQL candidates for the question.",
+        "Follow this lightweight DeepEye-SQL workflow: use retrieved values first, respect schema links second, then implement SQL.",
         "Use only the observed tables and columns from the provided schema.",
         "Each candidate must target exactly one sqlite database.",
+        "If the schema linking context contains retrieved database values, prefer those exact values over paraphrases.",
         "Prefer candidates that differ in join, filtering, or aggregation strategy while staying grounded in the schema.",
+        "Candidate 1 should be the most conservative high-confidence query.",
+        f"The expected answer shape is: {answer_shape}.",
         "Return only a JSON array.",
         'Each array item must be an object with keys "sql" and "rationale".',
         "Do not include markdown fences or extra commentary.",
@@ -139,6 +155,7 @@ def generate_sql_candidates_with_model(
         raise RuntimeError("generate_sql_candidates must return a non-empty JSON array.")
 
     candidates: list[dict[str, str]] = []
+    seen_sql: set[str] = set()
     for index, item in enumerate(parsed):
         if not isinstance(item, dict):
             raise RuntimeError(f"generate_sql_candidates item {index} is not an object.")
@@ -146,6 +163,10 @@ def generate_sql_candidates_with_model(
         rationale = str(item.get("rationale") or "").strip()
         if not sql:
             raise RuntimeError(f"generate_sql_candidates item {index} is missing SQL text.")
+        sql_key = " ".join(sql.casefold().split())
+        if sql_key in seen_sql:
+            continue
+        seen_sql.add(sql_key)
         candidates.append({"sql": sql, "rationale": rationale})
 
     return {

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from data_agent_baseline.agents.model import ModelAdapter, ModelMessage
-from data_agent_baseline.tools.sql_generate import _extract_json_payload, _render_schema
+from data_agent_baseline.tools.sql_generate import _extract_json_payload, _infer_answer_shape, _render_schema
 
 
 def build_revise_sql_candidate_messages(
@@ -24,12 +24,15 @@ def build_revise_sql_candidate_messages(
         if schema_link_context
         else ""
     )
+    answer_shape = _infer_answer_shape(question)
 
     instructions = [
         f"Revise the previous SQL attempts and generate up to {num_candidates} improved grounded read-only SQL candidates.",
+        "Follow this lightweight DeepEye-SQL workflow: keep grounded value retrieval and schema links, then repair the SQL implementation.",
         "Use the verification results to avoid repeated errors and poor result shapes.",
         "Use only observed tables and columns from the schema.",
         "Each candidate must target exactly one sqlite database.",
+        f"The expected answer shape is: {answer_shape}.",
         "Return only a JSON array.",
         'Each array item must be an object with keys "sql" and "rationale".',
         "Do not include markdown fences or extra commentary.",
@@ -84,6 +87,7 @@ def revise_sql_candidates_with_model(
         raise RuntimeError("revise_sql_candidates must return a non-empty JSON array.")
 
     candidates: list[dict[str, str]] = []
+    seen_sql: set[str] = set()
     for index, item in enumerate(parsed):
         if not isinstance(item, dict):
             raise RuntimeError(f"revise_sql_candidates item {index} is not an object.")
@@ -91,6 +95,10 @@ def revise_sql_candidates_with_model(
         rationale = str(item.get("rationale") or "").strip()
         if not sql:
             raise RuntimeError(f"revise_sql_candidates item {index} is missing SQL text.")
+        sql_key = " ".join(sql.casefold().split())
+        if sql_key in seen_sql:
+            continue
+        seen_sql.add(sql_key)
         candidates.append({"sql": sql, "rationale": rationale})
 
     return {
