@@ -646,23 +646,29 @@ def _task_has_mixed_structured_sources(task: PublicTask) -> bool:
 def _task_needs_doc_rule_grounding(task: PublicTask) -> bool:
     context_dir = Path(task.context_dir)
     question_tokens = set(_tokenize_text(task.question))
-    has_doc = any(context_dir.rglob("*.md"))
-    if not has_doc:
+    has_knowledge_doc = (context_dir / "knowledge.md").exists()
+    has_doc_dir = (context_dir / "doc").exists()
+    if not has_knowledge_doc and not has_doc_dir:
         return False
-    if question_tokens & RULE_GROUNDING_TOKENS:
-        return True
     lowered = task.question.casefold()
-    return any(
-        phrase in lowered
-        for phrase in (
-            "how much faster",
-            "what percentage",
-            "normal level",
-            "abnormal level",
-            "legal status",
-            "budget",
-        )
+    strong_phrases = (
+        "normal level",
+        "abnormal level",
+        "legal status",
+        "how much faster",
+        "more than",
+        "less than",
+        "toxicology",
+        "carcinogenic",
     )
+    strong_signal = any(phrase in lowered for phrase in strong_phrases)
+    rule_token_count = len(question_tokens & RULE_GROUNDING_TOKENS)
+    difficulty = task.difficulty.casefold().strip()
+    if difficulty in {"hard", "extreme"} and (strong_signal or rule_token_count >= 2):
+        return True
+    if has_knowledge_doc and strong_signal and rule_token_count >= 2:
+        return True
+    return False
 
 
 def _normalize_rule_hint(text: str) -> str:
@@ -736,11 +742,20 @@ def _collect_rule_hints_from_observation(task: PublicTask, observation: dict[str
     return hints
 
 
+def _is_high_confidence_rule_hint(hint: str) -> bool:
+    lowered = hint.casefold()
+    if re.search(r"\d", hint) and RULE_PATTERN.search(hint):
+        return True
+    return ("format" in lowered and "status" in lowered) or ("legal" in lowered and "commander" in lowered)
+
+
 def _find_recent_rule_hints(task: PublicTask, steps: list[StepRecord]) -> tuple[str, ...]:
     hints: list[str] = []
     seen: set[str] = set()
     for step in reversed(steps):
         for hint in _collect_rule_hints_from_observation(task, step.observation):
+            if not _is_high_confidence_rule_hint(hint):
+                continue
             if hint in seen:
                 continue
             seen.add(hint)
@@ -768,10 +783,6 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
         )
         for hint in policy.recent_rule_hints:
             hints.append(f"Observed rule hint: {hint}")
-    elif policy.doc_rule_mode:
-        hints.append(
-            "This task likely needs rule grounding from docs or knowledge. Extract thresholds or legal/status mappings first, then apply them to structured data."
-        )
     if policy.has_selected_sql_waiting:
         hints.append("A selected SQL candidate already exists. Execute it next before starting new exploration.")
     if policy.recent_sql_error_count >= 2:
@@ -800,7 +811,8 @@ def _augment_text_rule_observation(task: PublicTask, action: str, observation: d
         return observation
 
     rule_hints = _collect_rule_hints_from_observation(task, observation)
-    if not rule_hints:
+    high_confidence_hints = [hint for hint in rule_hints if _is_high_confidence_rule_hint(hint)]
+    if not high_confidence_hints:
         return observation
 
     updated = dict(observation)
@@ -809,7 +821,7 @@ def _augment_text_rule_observation(task: PublicTask, action: str, observation: d
     )
     updated["suggested_next_actions"] = ["execute_context_sql", "execute_python"]
     updated["ready_to_apply_rule_grounding"] = True
-    updated["derived_rule_hints"] = rule_hints
+    updated["derived_rule_hints"] = high_confidence_hints[:3]
     return updated
 
 

@@ -160,26 +160,27 @@ def _mixed_source_strategy_text(task: PublicTask) -> str:
 
 def _doc_rule_strategy_text(task: PublicTask) -> str:
     context_dir = Path(task.context_dir)
-    has_doc = any(context_dir.rglob("*.md"))
-    if not has_doc:
+    has_knowledge_doc = (context_dir / "knowledge.md").exists()
+    has_doc_dir = (context_dir / "doc").exists()
+    if not has_knowledge_doc and not has_doc_dir:
         return ""
     lowered = task.question.casefold()
-    triggers = (
-        "normal",
-        "abnormal",
-        "legal",
-        "status",
-        "budget",
-        "percentage",
-        "ratio",
+    strong_triggers = (
+        "normal level",
+        "abnormal level",
+        "legal status",
         "toxicology",
         "carcinogenic",
         "commander",
         "more than",
         "less than",
         "how much faster",
+        "budget",
     )
-    if not any(trigger in lowered for trigger in triggers):
+    difficulty = task.difficulty.casefold().strip()
+    if difficulty not in {"hard", "extreme"} and not has_knowledge_doc:
+        return ""
+    if not any(trigger in lowered for trigger in strong_triggers):
         return ""
     return (
         "This task likely needs rule grounding from documents or knowledge. "

@@ -360,6 +360,7 @@ class TestMultiStepSuccess:
         assert "apply those grounded rules" in prompt
 
     def test_read_doc_observation_extracts_rule_hint(self, ctx: Path):
+        (ctx / "knowledge.md").write_text("placeholder", encoding="utf-8")
         task = PublicTask(
             record=TaskRecord(
                 task_id="agent-test-rule-observation",
