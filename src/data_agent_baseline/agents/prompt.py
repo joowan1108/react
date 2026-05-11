@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from data_agent_baseline.benchmark.schema import PublicTask
 
@@ -138,6 +139,25 @@ def _difficulty_strategy_text(task: PublicTask) -> str:
     )
 
 
+def _has_mixed_structured_context(task: PublicTask) -> bool:
+    context_dir = Path(task.context_dir)
+    has_db = any(context_dir.rglob("*.db"))
+    has_csv = any(context_dir.rglob("*.csv"))
+    has_json = any(context_dir.rglob("*.json"))
+    return sum([has_db, has_csv, has_json]) >= 2
+
+
+def _mixed_source_strategy_text(task: PublicTask) -> str:
+    if not _has_mixed_structured_context(task):
+        return ""
+    return (
+        "This task mixes multiple structured sources. Prefer a staged bridge: first extract a key set or filtered IDs "
+        "from CSV/JSON or one database, then query the downstream database with those observed keys. "
+        "Do not assume one SQL query can span multiple source files or databases. "
+        "When in doubt, solve the task as key extraction first, downstream lookup second, and final answer last. "
+    )
+
+
 def build_task_prompt(task: PublicTask) -> str:
     return (
         f"Task ID: {task.task_id}\n"
@@ -145,6 +165,7 @@ def build_task_prompt(task: PublicTask) -> str:
         f"Question: {task.question}\n"
         "All tool file paths are relative to the task context directory. "
         f"{_difficulty_strategy_text(task)} "
+        f"{_mixed_source_strategy_text(task)}"
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
         "If the SQL looks difficult, prefer `run_sql_pipeline` before executing final SQL. "

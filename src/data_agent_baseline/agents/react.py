@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from data_agent_baseline.agents.model import ModelAdapter, ModelMessage, ModelStep
@@ -65,6 +66,7 @@ class AgentPolicyState:
     has_selected_sql_waiting: bool
     has_ready_sql_result: bool
     has_grounded_sql_result: bool
+    mixed_source_mode: bool
     repeated_same_action_count: int
     recent_sql_error_count: int
     list_context_count: int
@@ -504,6 +506,7 @@ def _find_last_pending_selected_sql_observation(steps: list[StepRecord]) -> dict
 def _build_policy_state(
     state: AgentRuntimeState,
     *,
+    task: PublicTask,
     next_step_index: int,
     max_steps: int,
 ) -> AgentPolicyState:
@@ -518,6 +521,7 @@ def _build_policy_state(
         has_selected_sql_waiting=pending_selected_sql is not None,
         has_ready_sql_result=ready_sql_observation is not None,
         has_grounded_sql_result=grounded_sql_observation is not None,
+        mixed_source_mode=_task_has_mixed_structured_sources(task),
         repeated_same_action_count=0,
         recent_sql_error_count=_count_recent_sql_errors(state.steps),
         list_context_count=sum(1 for step in state.steps if step.action == "list_context"),
@@ -525,11 +529,26 @@ def _build_policy_state(
     )
 
 
+def _task_has_mixed_structured_sources(task: PublicTask) -> bool:
+    context_dir = Path(task.context_dir)
+    has_db = any(context_dir.rglob("*.db"))
+    has_csv = any(context_dir.rglob("*.csv"))
+    has_json = any(context_dir.rglob("*.json"))
+    return sum([has_db, has_csv, has_json]) >= 2
+
+
 def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | None:
     hints: list[str] = []
     difficulty = task.difficulty.casefold().strip()
     if difficulty == "easy":
         hints.append("For easy tasks, prefer the shortest grounded path and avoid extra exploration.")
+    if policy.mixed_source_mode:
+        hints.append(
+            "This is a mixed-source task. Prefer extracting qualifying IDs or key values from one structured source first, then query the downstream source with those observed keys."
+        )
+        hints.append(
+            "Do not assume one SQL query can span multiple databases or files. Bridge the sources in stages."
+        )
     if policy.has_selected_sql_waiting:
         hints.append("A selected SQL candidate already exists. Execute it next before starting new exploration.")
     if policy.recent_sql_error_count >= 2:
@@ -784,6 +803,7 @@ class ReActAgent:
     ) -> list[ModelMessage]:
         policy = _build_policy_state(
             state,
+            task=task,
             next_step_index=next_step_index,
             max_steps=self.config.max_steps,
         )

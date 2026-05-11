@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from data_agent_baseline.agents.model import ScriptedModelAdapter
+from data_agent_baseline.agents.prompt import build_task_prompt
 from data_agent_baseline.agents.react import (
     ReActAgent,
     ReActAgentConfig,
@@ -242,6 +243,40 @@ class TestMultiStepSuccess:
         control_messages = [message.content for message in messages if message.role == "user" and "Control hints:" in message.content]
         assert control_messages
         assert "Prefer final shaping or answer now" in control_messages[-1] or "Prefer answer now" in control_messages[-1]
+
+    def test_mixed_source_task_prompt_mentions_staged_bridge(self, ctx: Path):
+        (ctx / "data.db").write_text("", encoding="utf-8")
+        (ctx / "facts.csv").write_text("id,value\n1,x\n", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-mixed",
+                difficulty="medium",
+                question="How many rows match the ids?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        prompt = build_task_prompt(task)
+        assert "mixed multiple structured sources" in prompt
+        assert "extract a key set or filtered IDs" in prompt
+
+    def test_mixed_source_control_message_mentions_staged_bridge(self, ctx: Path):
+        (ctx / "data.db").write_text("", encoding="utf-8")
+        (ctx / "facts.csv").write_text("id,value\n1,x\n", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-mixed-control",
+                difficulty="medium",
+                question="How many rows match the ids?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        state = AgentRuntimeState()
+        agent = ReActAgent(model=ScriptedModelAdapter([]), tools=create_default_tool_registry(), config=ReActAgentConfig(max_steps=4))
+        messages = agent._build_messages(task, state, next_step_index=1)
+        control_messages = [message.content for message in messages if message.role == "user" and "Control hints:" in message.content]
+        assert control_messages
+        assert "mixed-source task" in control_messages[-1]
+        assert "Bridge the sources in stages" in control_messages[-1]
 
 
 # ---------------------------------------------------------------------------
