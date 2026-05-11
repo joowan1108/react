@@ -972,6 +972,13 @@ def _select_easy_compact_output_indexes(
         return None
 
     question = task.question
+    if _question_expects_single_value(question):
+        numeric_indexes = [index for index in non_helper_indexes if _column_is_mostly_numeric(rows, index)]
+        mentioned_numeric_indexes = [index for index in mentioned_non_helper_indexes if index in numeric_indexes]
+        if len(mentioned_numeric_indexes) == 1:
+            return mentioned_numeric_indexes
+        if len(numeric_indexes) == 1:
+            return numeric_indexes
     if len(mentioned_non_helper_indexes) == 1:
         return mentioned_non_helper_indexes
 
@@ -983,6 +990,19 @@ def _select_easy_compact_output_indexes(
             return numeric_indexes
         if _question_prefers_single_output_column(question) and len(non_numeric_indexes) == 1:
             return non_numeric_indexes
+
+    if _question_prefers_single_output_column(question):
+        ranked_indexes = sorted(
+            candidate_indexes or range(len(columns)),
+            key=lambda index: (
+                _score_output_column(task=task, column=columns[index], rows=rows, index=index),
+                -index,
+            ),
+            reverse=True,
+        )
+        if ranked_indexes:
+            best_index = ranked_indexes[0]
+            return [best_index]
 
     if _question_prefers_single_output_column(question) and len(entity_like_indexes) == 1:
         return entity_like_indexes

@@ -285,6 +285,40 @@ class TestMultiStepSuccess:
         assert columns == ["member_name"]
         assert rows == [["Alice"]]
 
+    def test_easy_final_score_drops_team_columns(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-easy-final-score",
+                difficulty="easy",
+                question="What was the final score for the match on September 24, 2008?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        columns, rows = _sanitize_answer_payload(
+            task,
+            ["home_team", "away_team", "final_score"],
+            [["A", "B", "2-1"]],
+        )
+        assert columns == ["final_score"]
+        assert rows == [["2-1"]]
+
+    def test_easy_single_entity_question_always_compacts_to_one_column(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-easy-one-col",
+                difficulty="easy",
+                question="Which event has the lowest cost?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        columns, rows = _sanitize_answer_payload(
+            task,
+            ["event_name", "event_date", "cost"],
+            [["October Speaker", "2024-10-01", 0.0]],
+        )
+        assert columns == ["event_name"]
+        assert rows == [["October Speaker"]]
+
     def test_general_sql_success_marks_compact_listing_ready_to_answer(self, ctx: Path):
         task = PublicTask(
             record=TaskRecord(
