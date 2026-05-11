@@ -56,6 +56,107 @@ AGGREGATE_COLUMN_TOKENS = frozenset(
         "maximum",
     }
 )
+ENTITY_COLUMN_TOKENS = frozenset(
+    {
+        "name",
+        "names",
+        "gender",
+        "sex",
+        "type",
+        "types",
+        "status",
+        "race",
+        "event",
+        "school",
+        "district",
+        "comment",
+        "user",
+        "driver",
+        "disease",
+        "funding",
+        "country",
+        "location",
+        "size",
+        "time",
+        "number",
+    }
+)
+MULTI_FIELD_REQUEST_TOKENS = frozenset(
+    {
+        "name",
+        "names",
+        "id",
+        "ids",
+        "sex",
+        "gender",
+        "disease",
+        "type",
+        "types",
+        "value",
+        "values",
+        "age",
+        "ages",
+        "time",
+        "times",
+        "latitude",
+        "longitude",
+        "status",
+        "comment",
+        "score",
+        "cost",
+        "funding",
+        "views",
+        "race",
+        "number",
+    }
+)
+SINGLE_OUTPUT_HINTS = (
+    "which ",
+    "who ",
+    "identify ",
+    "what is ",
+    "what was ",
+    "what's ",
+    "whats ",
+    "which race",
+    "which event",
+    "which driver",
+)
+RULE_GROUNDING_TOKENS = frozenset(
+    {
+        "normal",
+        "abnormal",
+        "range",
+        "between",
+        "greater",
+        "less",
+        "more",
+        "under",
+        "over",
+        "above",
+        "below",
+        "legal",
+        "illegal",
+        "banned",
+        "restricted",
+        "status",
+        "threshold",
+        "budget",
+        "percentage",
+        "ratio",
+        "toxicology",
+        "carcinogenic",
+        "commander",
+        "format",
+    }
+)
+RULE_SOURCE_TOOL_ACTIONS = frozenset({"read_doc", "retrieve"})
+RULE_PATTERN = re.compile(
+    r"(?i)(between\s+\d+(?:\.\d+)?\s+and\s+\d+(?:\.\d+)?)|"
+    r"((?:>=|<=|>|<)\s*\d+(?:\.\d+)?)|"
+    r"((?:above|below|over|under|more than|less than)\s+\d+(?:\.\d+)?)|"
+    r"((?:legal|banned|restricted|normal|abnormal)\b)"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +168,8 @@ class AgentPolicyState:
     has_ready_sql_result: bool
     has_grounded_sql_result: bool
     mixed_source_mode: bool
+    doc_rule_mode: bool
+    recent_rule_hints: tuple[str, ...]
     repeated_same_action_count: int
     recent_sql_error_count: int
     list_context_count: int
@@ -514,6 +617,7 @@ def _build_policy_state(
     pending_selected_sql = _find_last_pending_selected_sql_observation(state.steps)
     ready_sql_observation = _find_last_ready_sql_observation(state.steps)
     grounded_sql_observation = _find_last_grounded_sql_observation(state.steps)
+    recent_rule_hints = _find_recent_rule_hints(task, state.steps)
     return AgentPolicyState(
         next_step_index=next_step_index,
         remaining_steps=remaining_steps,
@@ -522,6 +626,8 @@ def _build_policy_state(
         has_ready_sql_result=ready_sql_observation is not None,
         has_grounded_sql_result=grounded_sql_observation is not None,
         mixed_source_mode=_task_has_mixed_structured_sources(task),
+        doc_rule_mode=_task_needs_doc_rule_grounding(task),
+        recent_rule_hints=recent_rule_hints,
         repeated_same_action_count=0,
         recent_sql_error_count=_count_recent_sql_errors(state.steps),
         list_context_count=sum(1 for step in state.steps if step.action == "list_context"),
@@ -537,6 +643,113 @@ def _task_has_mixed_structured_sources(task: PublicTask) -> bool:
     return sum([has_db, has_csv, has_json]) >= 2
 
 
+def _task_needs_doc_rule_grounding(task: PublicTask) -> bool:
+    context_dir = Path(task.context_dir)
+    question_tokens = set(_tokenize_text(task.question))
+    has_doc = any(context_dir.rglob("*.md"))
+    if not has_doc:
+        return False
+    if question_tokens & RULE_GROUNDING_TOKENS:
+        return True
+    lowered = task.question.casefold()
+    return any(
+        phrase in lowered
+        for phrase in (
+            "how much faster",
+            "what percentage",
+            "normal level",
+            "abnormal level",
+            "legal status",
+            "budget",
+        )
+    )
+
+
+def _normalize_rule_hint(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _extract_rule_hints_from_text(task: PublicTask, text: str) -> list[str]:
+    question_tokens = set(_tokenize_text(task.question))
+    hints: list[str] = []
+    seen: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.strip(" -\t")
+        if len(line) < 12:
+            continue
+        lowered = line.casefold()
+        tokens = set(_tokenize_text(line))
+        if not RULE_PATTERN.search(line):
+            if not (question_tokens & tokens and {"format", "status", "legal"} & tokens):
+                continue
+        if question_tokens and len(question_tokens & tokens) == 0 and not any(
+            token in lowered for token in ("legal", "banned", "restricted", "normal", "abnormal")
+        ):
+            continue
+        normalized = _normalize_rule_hint(line)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        hints.append(normalized[:180])
+        if len(hints) >= 3:
+            break
+    return hints
+
+
+def _collect_rule_hints_from_observation(task: PublicTask, observation: dict[str, object]) -> list[str]:
+    if not observation.get("ok"):
+        return []
+    tool = str(observation.get("tool") or "")
+    if tool not in RULE_SOURCE_TOOL_ACTIONS:
+        return []
+
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return []
+
+    candidate_texts: list[str] = []
+    preview = content.get("preview")
+    if isinstance(preview, str) and preview.strip():
+        candidate_texts.append(preview)
+
+    matches = content.get("matches")
+    if isinstance(matches, list):
+        for match in matches[:6]:
+            if not isinstance(match, dict):
+                continue
+            for key in ("content", "text"):
+                value = match.get(key)
+                if isinstance(value, str) and value.strip():
+                    candidate_texts.append(value)
+                    break
+
+    hints: list[str] = []
+    seen: set[str] = set()
+    for text in candidate_texts:
+        for hint in _extract_rule_hints_from_text(task, text):
+            if hint in seen:
+                continue
+            seen.add(hint)
+            hints.append(hint)
+            if len(hints) >= 3:
+                return hints
+    return hints
+
+
+def _find_recent_rule_hints(task: PublicTask, steps: list[StepRecord]) -> tuple[str, ...]:
+    hints: list[str] = []
+    seen: set[str] = set()
+    for step in reversed(steps):
+        for hint in _collect_rule_hints_from_observation(task, step.observation):
+            if hint in seen:
+                continue
+            seen.add(hint)
+            hints.append(hint)
+            if len(hints) >= 3:
+                return tuple(hints)
+    return tuple(hints)
+
+
 def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | None:
     hints: list[str] = []
     difficulty = task.difficulty.casefold().strip()
@@ -548,6 +761,16 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
         )
         hints.append(
             "Do not assume one SQL query can span multiple databases or files. Bridge the sources in stages."
+        )
+    if policy.doc_rule_mode and policy.recent_rule_hints:
+        hints.append(
+            "You already observed rule-like guidance from docs or knowledge. Apply those grounded rules to SQL or Python now instead of doing more document search."
+        )
+        for hint in policy.recent_rule_hints:
+            hints.append(f"Observed rule hint: {hint}")
+    elif policy.doc_rule_mode:
+        hints.append(
+            "This task likely needs rule grounding from docs or knowledge. Extract thresholds or legal/status mappings first, then apply them to structured data."
         )
     if policy.has_selected_sql_waiting:
         hints.append("A selected SQL candidate already exists. Execute it next before starting new exploration.")
@@ -568,6 +791,26 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
     if not hints:
         return None
     return "Control hints:\n- " + "\n- ".join(hints)
+
+
+def _augment_text_rule_observation(task: PublicTask, action: str, observation: dict[str, object]) -> dict[str, object]:
+    if action not in RULE_SOURCE_TOOL_ACTIONS or not observation.get("ok"):
+        return observation
+    if not _task_needs_doc_rule_grounding(task):
+        return observation
+
+    rule_hints = _collect_rule_hints_from_observation(task, observation)
+    if not rule_hints:
+        return observation
+
+    updated = dict(observation)
+    updated["retry_hint"] = (
+        "You already observed rule-like guidance from docs or knowledge. Apply those rules to SQL or Python now instead of continuing broad document search."
+    )
+    updated["suggested_next_actions"] = ["execute_context_sql", "execute_python"]
+    updated["ready_to_apply_rule_grounding"] = True
+    updated["derived_rule_hints"] = rule_hints
+    return updated
 
 
 def _question_expects_single_value(question: str) -> bool:
@@ -598,6 +841,11 @@ def _is_aggregate_column_name(column_name: str) -> bool:
     return any(token in AGGREGATE_COLUMN_TOKENS for token in tokens)
 
 
+def _is_entity_like_column_name(column_name: str) -> bool:
+    tokens = _tokenize_text(column_name)
+    return any(token in ENTITY_COLUMN_TOKENS for token in tokens)
+
+
 def _question_mentions_column(question: str, column_name: str) -> bool:
     question_lowered = question.casefold()
     column_lowered = column_name.casefold()
@@ -624,6 +872,72 @@ def _project_answer_table(
     return projected_columns, projected_rows
 
 
+def _is_numericish_value(value: Any) -> bool:
+    text = str(value).strip()
+    if not text:
+        return False
+    return bool(re.fullmatch(r"[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:%)?", text))
+
+
+def _column_is_mostly_numeric(rows: list[list[Any]], index: int) -> bool:
+    observed = [row[index] for row in rows if len(row) > index and str(row[index]).strip()]
+    if not observed:
+        return False
+    numeric_count = sum(1 for value in observed if _is_numericish_value(value))
+    return numeric_count >= max(1, len(observed) * 0.7)
+
+
+def _question_requests_multiple_output_fields(question: str) -> bool:
+    lowered = question.casefold()
+    if "," in lowered:
+        return True
+    if " and " not in lowered:
+        return False
+    tokens = _tokenize_text(question)
+    marker_count = sum(1 for token in tokens if token in MULTI_FIELD_REQUEST_TOKENS)
+    return marker_count >= 2
+
+
+def _question_prefers_single_output_column(question: str) -> bool:
+    lowered = question.casefold().strip()
+    if _question_expects_single_value(question):
+        return True
+    if _question_requests_multiple_output_fields(question):
+        return False
+    return any(lowered.startswith(prefix) for prefix in SINGLE_OUTPUT_HINTS)
+
+
+def _score_output_column(
+    *,
+    task: PublicTask,
+    column: str,
+    rows: list[list[Any]],
+    index: int,
+) -> int:
+    score = 0
+    question = task.question
+    if _question_mentions_column(question, column):
+        score += 8
+    if not _is_helper_column_name(column):
+        score += 3
+    else:
+        score -= 6
+    if _is_entity_like_column_name(column):
+        score += 4
+    if _is_aggregate_column_name(column):
+        score += 5 if _question_expects_single_value(question) else -2
+
+    is_numeric = _column_is_mostly_numeric(rows, index)
+    if _question_expects_single_value(question):
+        score += 4 if is_numeric else -1
+    elif _question_prefers_single_output_column(question):
+        score += 2 if not is_numeric else -1
+        if _is_entity_like_column_name(column):
+            score += 2
+
+    return score
+
+
 def _sanitize_answer_payload(
     task: PublicTask,
     columns: list[str],
@@ -637,9 +951,17 @@ def _sanitize_answer_payload(
     mentioned_indexes = [
         index for index, column in enumerate(columns) if _question_mentions_column(question, column)
     ]
+    mentioned_non_helper_indexes = [
+        index for index in mentioned_indexes if not _is_helper_column_name(columns[index])
+    ]
     non_helper_indexes = [
         index for index, column in enumerate(columns) if not _is_helper_column_name(column)
     ]
+    entity_like_indexes = [
+        index for index, column in enumerate(columns) if _is_entity_like_column_name(column)
+    ]
+    prefers_single_output_column = _question_prefers_single_output_column(question)
+    requests_multiple_output_fields = _question_requests_multiple_output_fields(question)
 
     if _question_expects_single_value(question) and row_count == 1:
         preferred_indexes = [
@@ -656,16 +978,45 @@ def _sanitize_answer_payload(
             return _project_answer_table(columns, rows, non_helper_indexes)
         return columns, rows
 
+    if prefers_single_output_column:
+        ranked_indexes = sorted(
+            range(len(columns)),
+            key=lambda index: (
+                _score_output_column(task=task, column=columns[index], rows=rows, index=index),
+                -index,
+            ),
+            reverse=True,
+        )
+        if ranked_indexes:
+            best_index = ranked_indexes[0]
+            best_score = _score_output_column(task=task, column=columns[best_index], rows=rows, index=best_index)
+            if best_score >= 4:
+                return _project_answer_table(columns, rows, [best_index])
+
     keep_indexes: list[int] = []
     for index, column in enumerate(columns):
         if _question_mentions_column(question, column) or not _is_helper_column_name(column):
             keep_indexes.append(index)
 
+    if requests_multiple_output_fields and mentioned_non_helper_indexes:
+        deduped_indexes: list[int] = []
+        seen_indexes: set[int] = set()
+        for index in mentioned_non_helper_indexes:
+            if index in seen_indexes:
+                continue
+            deduped_indexes.append(index)
+            seen_indexes.add(index)
+        if 1 < len(deduped_indexes) < len(columns):
+            return _project_answer_table(columns, rows, deduped_indexes)
+
     if keep_indexes and len(keep_indexes) < len(columns):
         return _project_answer_table(columns, rows, keep_indexes)
 
-    if _question_expects_listing(question) and mentioned_indexes and len(mentioned_indexes) < len(columns):
-        return _project_answer_table(columns, rows, mentioned_indexes)
+    if _question_expects_listing(question) and mentioned_non_helper_indexes and len(mentioned_non_helper_indexes) < len(columns):
+        return _project_answer_table(columns, rows, mentioned_non_helper_indexes)
+
+    if _question_expects_listing(question) and entity_like_indexes and len(entity_like_indexes) == 1 and len(columns) > 1:
+        return _project_answer_table(columns, rows, entity_like_indexes)
 
     return columns, rows
 
@@ -892,6 +1243,7 @@ class ReActAgent:
             }
             observation = _slim_success_observation(model_step.action, observation)
             observation = _augment_pipeline_observation_hint(model_step.action, observation)
+            observation = _augment_text_rule_observation(task, model_step.action, observation)
             if model_step.action == "execute_context_sql":
                 observation = _augment_selected_sql_execution_observation(previous_observation, observation)
                 observation = _augment_general_sql_execution_observation(task, observation)

@@ -23,6 +23,8 @@ from data_agent_baseline.agents.react import (
     ReActAgent,
     ReActAgentConfig,
     _augment_general_sql_execution_observation,
+    _sanitize_answer_payload,
+    _augment_text_rule_observation,
 )
 from data_agent_baseline.agents.runtime import AgentRuntimeState, StepRecord
 from data_agent_baseline.benchmark.schema import PublicTask, TaskAssets, TaskRecord
@@ -184,6 +186,71 @@ class TestMultiStepSuccess:
         assert result.answer.columns == ["employee_count"]
         assert result.answer.rows == [[42]]
 
+    def test_which_question_prefers_entity_column_over_criterion_value(self, ctx: Path, registry):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-which",
+                difficulty="easy",
+                question="Which event has the lowest cost?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        model = ScriptedModelAdapter(
+            [
+                answer_response(
+                    ["event_name", "cost"],
+                    [["October Speaker", 0.0]],
+                )
+            ]
+        )
+        agent = ReActAgent(model=model, tools=registry, config=ReActAgentConfig(max_steps=5))
+        result = agent.run(task)
+
+        assert result.answer is not None
+        assert result.answer.columns == ["event_name"]
+        assert result.answer.rows == [["October Speaker"]]
+
+    def test_explicit_multi_field_question_keeps_multiple_requested_columns(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-multi-fields",
+                difficulty="medium",
+                question="Identify the type of expenses and their total value approved for October Meeting event.",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        columns, rows = _sanitize_answer_payload(
+            task,
+            ["expense_type", "total_value", "event_id"],
+            [["Advertisement", 200, "rec123"]],
+        )
+        assert columns == ["expense_type", "total_value"]
+        assert rows == [["Advertisement", 200]]
+
+    def test_time_question_prefers_time_column(self, ctx: Path, registry):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-time",
+                difficulty="easy",
+                question="What's the finish time for the driver who ranked second in the race?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        model = ScriptedModelAdapter(
+            [
+                answer_response(
+                    ["driver_name", "finish_time"],
+                    [["Driver A", "1:32:10.123"]],
+                )
+            ]
+        )
+        agent = ReActAgent(model=model, tools=registry, config=ReActAgentConfig(max_steps=5))
+        result = agent.run(task)
+
+        assert result.answer is not None
+        assert result.answer.columns == ["finish_time"]
+        assert result.answer.rows == [["1:32:10.123"]]
+
     def test_general_sql_success_marks_compact_listing_ready_to_answer(self, ctx: Path):
         task = PublicTask(
             record=TaskRecord(
@@ -277,6 +344,88 @@ class TestMultiStepSuccess:
         assert control_messages
         assert "mixed-source task" in control_messages[-1]
         assert "Bridge the sources in stages" in control_messages[-1]
+
+    def test_doc_rule_task_prompt_mentions_rule_grounding(self, ctx: Path):
+        (ctx / "knowledge.md").write_text("WBC normal range is documented here.", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-doc-rule",
+                difficulty="medium",
+                question="Among male patients with normal WBC, how many have abnormal FG?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        prompt = build_task_prompt(task)
+        assert "rule grounding from documents or knowledge" in prompt
+        assert "apply those grounded rules" in prompt
+
+    def test_read_doc_observation_extracts_rule_hint(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-rule-observation",
+                difficulty="medium",
+                question="What percentage of cards with format commander and legal status do not have a content warning?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        observation = {
+            "ok": True,
+            "tool": "read_doc",
+            "content": {
+                "path": "knowledge.md",
+                "preview": (
+                    "### Use Case\n"
+                    "- Legal Status in Format:\n"
+                    "- Example: Percentage of cards legal in 'commander' format.\n"
+                    "- SQL Example: SELECT COUNT(*) FROM legalities WHERE format = 'commander' AND status = 'Legal';\n"
+                ),
+            },
+        }
+
+        updated = _augment_text_rule_observation(task, "read_doc", observation)
+        assert updated["ready_to_apply_rule_grounding"] is True
+        assert updated["suggested_next_actions"] == ["execute_context_sql", "execute_python"]
+        assert any("commander" in hint.casefold() for hint in updated["derived_rule_hints"])
+
+    def test_control_message_mentions_observed_rule_hint(self, ctx: Path):
+        (ctx / "knowledge.md").write_text("placeholder", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-rule-control",
+                difficulty="hard",
+                question="What percentage of cards with format commander and legal status do not have a content warning?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        state = AgentRuntimeState()
+        state.steps.append(
+            StepRecord(
+                step_index=1,
+                thought="",
+                action="read_doc",
+                action_input={"path": "knowledge.md"},
+                raw_response="",
+                observation={
+                    "ok": True,
+                    "tool": "read_doc",
+                    "content": {
+                        "path": "knowledge.md",
+                        "preview": (
+                            "Legal Status in Format:\n"
+                            "Example: Percentage of cards legal in 'commander' format.\n"
+                            "SELECT COUNT(*) FROM legalities WHERE format = 'commander' AND status = 'Legal';"
+                        ),
+                    },
+                },
+                ok=True,
+            )
+        )
+        agent = ReActAgent(model=ScriptedModelAdapter([]), tools=create_default_tool_registry(), config=ReActAgentConfig(max_steps=4))
+        messages = agent._build_messages(task, state, next_step_index=2)
+        control_messages = [message.content for message in messages if message.role == "user" and "Control hints:" in message.content]
+        assert control_messages
+        assert "rule-like guidance from docs or knowledge" in control_messages[-1]
+        assert "Observed rule hint:" in control_messages[-1]
 
 
 # ---------------------------------------------------------------------------

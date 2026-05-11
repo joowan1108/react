@@ -158,6 +158,36 @@ def _mixed_source_strategy_text(task: PublicTask) -> str:
     )
 
 
+def _doc_rule_strategy_text(task: PublicTask) -> str:
+    context_dir = Path(task.context_dir)
+    has_doc = any(context_dir.rglob("*.md"))
+    if not has_doc:
+        return ""
+    lowered = task.question.casefold()
+    triggers = (
+        "normal",
+        "abnormal",
+        "legal",
+        "status",
+        "budget",
+        "percentage",
+        "ratio",
+        "toxicology",
+        "carcinogenic",
+        "commander",
+        "more than",
+        "less than",
+        "how much faster",
+    )
+    if not any(trigger in lowered for trigger in triggers):
+        return ""
+    return (
+        "This task likely needs rule grounding from documents or knowledge. "
+        "Prefer extracting thresholds, comparisons, legal/status mappings, or semantic definitions from docs first, "
+        "then apply those grounded rules to SQL or Python. Avoid repeating broad document searches after a usable rule is found. "
+    )
+
+
 def build_task_prompt(task: PublicTask) -> str:
     return (
         f"Task ID: {task.task_id}\n"
@@ -166,6 +196,7 @@ def build_task_prompt(task: PublicTask) -> str:
         "All tool file paths are relative to the task context directory. "
         f"{_difficulty_strategy_text(task)} "
         f"{_mixed_source_strategy_text(task)}"
+        f"{_doc_rule_strategy_text(task)}"
         "When you have the final table, call the `answer` tool. "
         "If the task uses structured CSV or JSON data, prefer `scan` first, then `inspect_sqlite_schema`, then SQL. "
         "If the SQL looks difficult, prefer `run_sql_pipeline` before executing final SQL. "
