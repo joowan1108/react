@@ -128,12 +128,18 @@ def _difficulty_strategy_text(task: PublicTask) -> str:
             "clearly involves tricky joins, ambiguous entity matching, or repeated SQL failures."
         )
     if difficulty in {"medium", "hard", "extreme"}:
-        return (
+        guidance = (
             f"Difficulty is {difficulty}. For structured-data questions, prefer `run_sql_pipeline` earlier whenever "
             "the SQL needs joins, value grounding, multiple conditions, or non-trivial aggregation. Still skip the "
             "pipeline when the task is mostly document reasoning or when a tiny direct SQL query is obviously enough. "
             "For these harder structured tasks, `run_sql_pipeline` can internally absorb `knowledge.md` when present."
         )
+        if difficulty in {"hard", "extreme"}:
+            guidance += (
+                " For hard tasks with thresholds, legal status, semantic definitions, or rule-like text, prefer one focused "
+                "rule lookup from docs/knowledge before a long SQL loop, then apply that rule to structured data."
+            )
+        return guidance
     return (
         "Use the observed question and context complexity to decide between light direct SQL and `run_sql_pipeline`."
     )

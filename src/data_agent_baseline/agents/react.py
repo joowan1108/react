@@ -169,6 +169,7 @@ class AgentPolicyState:
     has_grounded_sql_result: bool
     mixed_source_mode: bool
     doc_rule_mode: bool
+    hard_doc_mode: bool
     recent_rule_hints: tuple[str, ...]
     repeated_same_action_count: int
     recent_sql_error_count: int
@@ -627,6 +628,7 @@ def _build_policy_state(
         has_grounded_sql_result=grounded_sql_observation is not None,
         mixed_source_mode=_task_has_mixed_structured_sources(task),
         doc_rule_mode=_task_needs_doc_rule_grounding(task),
+        hard_doc_mode=task.difficulty.casefold().strip() in {"hard", "extreme"} and _task_needs_doc_rule_grounding(task),
         recent_rule_hints=recent_rule_hints,
         repeated_same_action_count=0,
         recent_sql_error_count=_count_recent_sql_errors(state.steps),
@@ -776,6 +778,10 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
         )
         hints.append(
             "Do not assume one SQL query can span multiple databases or files. Bridge the sources in stages."
+        )
+    if policy.hard_doc_mode and not policy.recent_rule_hints:
+        hints.append(
+            "This hard task likely needs one targeted rule lookup from knowledge/docs before a long SQL loop. Prefer one focused retrieve(mode='rule') or one relevant read_doc, then apply the rule to structured data."
         )
     if policy.doc_rule_mode and policy.recent_rule_hints:
         hints.append(
@@ -950,6 +956,40 @@ def _score_output_column(
     return score
 
 
+def _select_easy_compact_output_indexes(
+    *,
+    task: PublicTask,
+    columns: list[str],
+    rows: list[list[Any]],
+    mentioned_non_helper_indexes: list[int],
+    non_helper_indexes: list[int],
+    entity_like_indexes: list[int],
+    requests_multiple_output_fields: bool,
+) -> list[int] | None:
+    if task.difficulty.casefold().strip() != "easy":
+        return None
+    if requests_multiple_output_fields:
+        return None
+
+    question = task.question
+    if len(mentioned_non_helper_indexes) == 1:
+        return mentioned_non_helper_indexes
+
+    candidate_indexes = mentioned_non_helper_indexes or non_helper_indexes
+    if len(candidate_indexes) == 2:
+        numeric_indexes = [index for index in candidate_indexes if _column_is_mostly_numeric(rows, index)]
+        non_numeric_indexes = [index for index in candidate_indexes if index not in numeric_indexes]
+        if _question_expects_single_value(question) and len(numeric_indexes) == 1:
+            return numeric_indexes
+        if _question_prefers_single_output_column(question) and len(non_numeric_indexes) == 1:
+            return non_numeric_indexes
+
+    if _question_prefers_single_output_column(question) and len(entity_like_indexes) == 1:
+        return entity_like_indexes
+
+    return None
+
+
 def _sanitize_answer_payload(
     task: PublicTask,
     columns: list[str],
@@ -1004,6 +1044,18 @@ def _sanitize_answer_payload(
             best_score = _score_output_column(task=task, column=columns[best_index], rows=rows, index=best_index)
             if best_score >= 4:
                 return _project_answer_table(columns, rows, [best_index])
+
+    easy_compact_indexes = _select_easy_compact_output_indexes(
+        task=task,
+        columns=columns,
+        rows=rows,
+        mentioned_non_helper_indexes=mentioned_non_helper_indexes,
+        non_helper_indexes=non_helper_indexes,
+        entity_like_indexes=entity_like_indexes,
+        requests_multiple_output_fields=requests_multiple_output_fields,
+    )
+    if easy_compact_indexes and len(easy_compact_indexes) < len(columns):
+        return _project_answer_table(columns, rows, easy_compact_indexes)
 
     keep_indexes: list[int] = []
     for index, column in enumerate(columns):

@@ -251,6 +251,40 @@ class TestMultiStepSuccess:
         assert result.answer.columns == ["finish_time"]
         assert result.answer.rows == [["1:32:10.123"]]
 
+    def test_easy_single_output_prefers_single_mentioned_field(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-easy-mentioned",
+                difficulty="easy",
+                question="What was the final score for the match?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        columns, rows = _sanitize_answer_payload(
+            task,
+            ["home_team", "away_team", "final_score"],
+            [["A", "B", "2-1"]],
+        )
+        assert columns == ["final_score"]
+        assert rows == [["2-1"]]
+
+    def test_easy_two_column_result_prefers_non_numeric_entity_for_single_output(self, ctx: Path):
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-easy-compact",
+                difficulty="easy",
+                question="Which member spent the most?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        columns, rows = _sanitize_answer_payload(
+            task,
+            ["member_name", "amount"],
+            [["Alice", 120]],
+        )
+        assert columns == ["member_name"]
+        assert rows == [["Alice"]]
+
     def test_general_sql_success_marks_compact_listing_ready_to_answer(self, ctx: Path):
         task = PublicTask(
             record=TaskRecord(
@@ -427,6 +461,23 @@ class TestMultiStepSuccess:
         assert control_messages
         assert "rule-like guidance from docs or knowledge" in control_messages[-1]
         assert "Observed rule hint:" in control_messages[-1]
+
+    def test_hard_doc_task_control_prefers_targeted_rule_lookup_before_long_sql_loop(self, ctx: Path):
+        (ctx / "knowledge.md").write_text("placeholder", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-hard-doc-control",
+                difficulty="hard",
+                question="Among male patients who have a normal level of white blood cells, how many have an abnormal fibrinogen level?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        state = AgentRuntimeState()
+        agent = ReActAgent(model=ScriptedModelAdapter([]), tools=create_default_tool_registry(), config=ReActAgentConfig(max_steps=4))
+        messages = agent._build_messages(task, state, next_step_index=1)
+        control_messages = [message.content for message in messages if message.role == "user" and "Control hints:" in message.content]
+        assert control_messages
+        assert "focused rule lookup" in control_messages[-1]
 
 
 # ---------------------------------------------------------------------------
