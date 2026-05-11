@@ -1,0 +1,2822 @@
+{
+  "task_id": "task_173",
+  "answer": null,
+  "steps": [
+    {
+      "step_index": 1,
+      "thought": "I need to explore the context to understand what files are available for this task about gas stations and transactions.",
+      "action": "list_context",
+      "action_input": {
+        "max_depth": 4
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to explore the context to understand what files are available for this task about gas stations and transactions.\",\"action\":\"list_context\",\"action_input\":{\"max_depth\":4}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "list_context",
+        "content": {
+          "root": "/home/tako/urp/react/data/public/input/task_173/context",
+          "entries": [
+            {
+              "path": "csv",
+              "kind": "dir",
+              "size": null
+            },
+            {
+              "path": "csv/yearmonth.csv",
+              "kind": "file",
+              "size": 8210334
+            },
+            {
+              "path": "db",
+              "kind": "dir",
+              "size": null
+            },
+            {
+              "path": "db/transactions_1k.db",
+              "kind": "file",
+              "size": 65536
+            },
+            {
+              "path": "json",
+              "kind": "dir",
+              "size": null
+            },
+            {
+              "path": "json/gasstations.json",
+              "kind": "file",
+              "size": 641302
+            },
+            {
+              "path": "knowledge.md",
+              "kind": "file",
+              "size": 4795
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 2,
+      "thought": "This is a mixed-source task. I need to scan the structured data files first to understand the schema, then bridge between sources to find gas stations with transactions in June 2013 and get their countries.",
+      "action": "scan",
+      "action_input": {
+        "sources": [
+          "csv",
+          "json"
+        ]
+      },
+      "raw_response": "```json\n{\"thought\":\"This is a mixed-source task. I need to scan the structured data files first to understand the schema, then bridge between sources to find gas stations with transactions in June 2013 and get their countries.\",\"action\":\"scan\",\"action_input\":{\"sources\":[\"csv\",\"json\"]}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "scan",
+        "content": {
+          "database_type": "sqlite",
+          "path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+          "table_count": 2,
+          "tables": [
+            {
+              "source_path": "csv/yearmonth.csv",
+              "source_type": "csv",
+              "table_name": "yearmonth",
+              "columns": [
+                "CustomerID",
+                "Date",
+                "Consumption"
+              ],
+              "row_count": 383282
+            },
+            {
+              "source_path": "json/gasstations.json",
+              "source_type": "json",
+              "table_name": "gasstations",
+              "columns": [
+                "GasStationID",
+                "ChainID",
+                "Country",
+                "Segment"
+              ],
+              "row_count": 5716
+            }
+          ],
+          "table_names": [
+            "yearmonth",
+            "gasstations"
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 3,
+      "thought": "I have scanned the CSV and JSON files. Now I need to inspect the SQLite database (transactions_1k.db) to understand its schema, as it likely contains transaction data that links gas stations to dates.",
+      "action": "inspect_sqlite_schema",
+      "action_input": {
+        "path": "db/transactions_1k.db"
+      },
+      "raw_response": "```json\n{\"thought\":\"I have scanned the CSV and JSON files. Now I need to inspect the SQLite database (transactions_1k.db) to understand its schema, as it likely contains transaction data that links gas stations to dates.\",\"action\":\"inspect_sqlite_schema\",\"action_input\":{\"path\":\"db/transactions_1k.db\"}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "inspect_sqlite_schema",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_173/context/db/transactions_1k.db",
+          "tables": [
+            {
+              "name": "transactions_1k",
+              "create_sql": "CREATE TABLE \"transactions_1k\"\n(\n    TransactionID INTEGER\n        primary key autoincrement,\n    Date          DATE,\n    Time          TEXT,\n    CustomerID    INTEGER,\n    CardID        INTEGER,\n    GasStationID  INTEGER,\n    ProductID     INTEGER,\n    Amount        INTEGER,\n    Price         REAL\n)",
+              "columns": [
+                {
+                  "cid": 0,
+                  "name": "TransactionID",
+                  "type": "INTEGER",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 1
+                },
+                {
+                  "cid": 1,
+                  "name": "Date",
+                  "type": "DATE",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 2,
+                  "name": "Time",
+                  "type": "TEXT",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 3,
+                  "name": "CustomerID",
+                  "type": "INTEGER",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 4,
+                  "name": "CardID",
+                  "type": "INTEGER",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 5,
+                  "name": "GasStationID",
+                  "type": "INTEGER",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 6,
+                  "name": "ProductID",
+                  "type": "INTEGER",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 7,
+                  "name": "Amount",
+                  "type": "INTEGER",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                },
+                {
+                  "cid": 8,
+                  "name": "Price",
+                  "type": "REAL",
+                  "notnull": false,
+                  "default_value": null,
+                  "primary_key_position": 0
+                }
+              ],
+              "primary_keys": [
+                "TransactionID"
+              ],
+              "foreign_keys": []
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 4,
+      "thought": "I need to find GasStationIDs from transactions in June 2013, then look up their countries. First, I'll query the transactions database to get GasStationIDs with transactions in June 2013.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "db/transactions_1k.db",
+        "sql": "SELECT DISTINCT GasStationID FROM transactions_1k WHERE Date >= '2013-06-01' AND Date <= '2013-06-30'",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to find GasStationIDs from transactions in June 2013, then look up their countries. First, I'll query the transactions database to get GasStationIDs with transactions in June 2013.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"db/transactions_1k.db\",\"sql\":\"SELECT DISTINCT GasStationID FROM transactions_1k WHERE Date >= '2013-06-01' AND Date <= '2013-06-30'\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_173/context/db/transactions_1k.db",
+          "columns": [
+            "GasStationID"
+          ],
+          "rows": [],
+          "row_count": 0,
+          "truncated": false
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 5,
+      "thought": "The query returned no results. I need to check what date format is used in the transactions table and what date range is actually present.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "db/transactions_1k.db",
+        "sql": "SELECT DISTINCT Date FROM transactions_1k ORDER BY Date LIMIT 20",
+        "limit": 20
+      },
+      "raw_response": "```json\n{\"thought\":\"The query returned no results. I need to check what date format is used in the transactions table and what date range is actually present.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"db/transactions_1k.db\",\"sql\":\"SELECT DISTINCT Date FROM transactions_1k ORDER BY Date LIMIT 20\",\"limit\":20}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_173/context/db/transactions_1k.db",
+          "columns": [
+            "Date"
+          ],
+          "rows": [
+            [
+              "2012-08-23"
+            ],
+            [
+              "2012-08-24"
+            ],
+            [
+              "2012-08-25"
+            ],
+            [
+              "2012-08-26"
+            ]
+          ],
+          "row_count": 4,
+          "truncated": false
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 6,
+      "thought": "The dates start from 2012. I need to check the full date range to see if there are any 2013 dates, particularly June 2013.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "db/transactions_1k.db",
+        "sql": "SELECT MIN(Date), MAX(Date) FROM transactions_1k",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"The dates start from 2012. I need to check the full date range to see if there are any 2013 dates, particularly June 2013.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"db/transactions_1k.db\",\"sql\":\"SELECT MIN(Date), MAX(Date) FROM transactions_1k\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/home/tako/urp/react/data/public/input/task_173/context/db/transactions_1k.db",
+          "columns": [
+            "MIN(Date)",
+            "MAX(Date)"
+          ],
+          "rows": [
+            [
+              "2012-08-23",
+              "2012-08-26"
+            ]
+          ],
+          "row_count": 1,
+          "truncated": false
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 7,
+      "thought": "The transactions_1k.db only has dates from August 2012, not June 2013. I need to check the scanned CSV file (yearmonth.csv) which might contain the June 2013 transaction data.",
+      "action": "read_csv",
+      "action_input": {
+        "path": "csv/yearmonth.csv",
+        "max_rows": 20
+      },
+      "raw_response": "```json\n{\"thought\":\"The transactions_1k.db only has dates from August 2012, not June 2013. I need to check the scanned CSV file (yearmonth.csv) which might contain the June 2013 transaction data.\",\"action\":\"read_csv\",\"action_input\":{\"path\":\"csv/yearmonth.csv\",\"max_rows\":20}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "read_csv",
+        "content": {
+          "path": "csv/yearmonth.csv",
+          "columns": [
+            "CustomerID",
+            "Date",
+            "Consumption"
+          ],
+          "rows": [
+            [
+              "5",
+              "201207",
+              "528.3"
+            ],
+            [
+              "5",
+              "201302",
+              "1598.28"
+            ],
+            [
+              "5",
+              "201303",
+              "1931.36"
+            ],
+            [
+              "5",
+              "201304",
+              "1497.14"
+            ],
+            [
+              "6",
+              "201203",
+              "51.06"
+            ],
+            [
+              "6",
+              "201205",
+              "49.34"
+            ],
+            [
+              "6",
+              "201207",
+              "43.67"
+            ],
+            [
+              "6",
+              "201302",
+              "294.38"
+            ],
+            [
+              "6",
+              "201303",
+              "439.49"
+            ],
+            [
+              "6",
+              "201304",
+              "509.39"
+            ],
+            [
+              "6",
+              "201305",
+              "528.0"
+            ],
+            [
+              "6",
+              "201306",
+              "573.85"
+            ],
+            [
+              "6",
+              "201307",
+              "509.36"
+            ],
+            [
+              "6",
+              "201308",
+              "486.1"
+            ],
+            [
+              "6",
+              "201309",
+              "448.98"
+            ],
+            [
+              "6",
+              "201310",
+              "182.66"
+            ],
+            [
+              "6",
+              "201311",
+              "107.22"
+            ],
+            [
+              "7",
+              "201201",
+              "3112.35"
+            ],
+            [
+              "7",
+              "201202",
+              "337.74"
+            ],
+            [
+              "7",
+              "201203",
+              "681.33"
+            ]
+          ],
+          "row_count": 383282
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 8,
+      "thought": "The yearmonth.csv has dates in YYYYMM format. I found 201306 (June 2013) entries. I need to find CustomerIDs with transactions in June 2013, then link them to gas stations. Let me check the knowledge.md for the data model and also examine the gasstations.json.",
+      "action": "read_doc",
+      "action_input": {
+        "path": "doc/knowledge.md"
+      },
+      "raw_response": "```json\n{\"thought\":\"The yearmonth.csv has dates in YYYYMM format. I found 201306 (June 2013) entries. I need to find CustomerIDs with transactions in June 2013, then link them to gas stations. Let me check the knowledge.md for the data model and also examine the gasstations.json.\",\"action\":\"read_doc\",\"action_input\":{\"path\":\"doc/knowledge.md\"}}\n```",
+      "observation": {
+        "ok": false,
+        "tool": "read_doc",
+        "error_type": "tool_error",
+        "error": "Missing context asset: doc/knowledge.md",
+        "retry_hint": "Use an exact path returned by list_context instead of a glob or guessed path.",
+        "missing_path": "doc/knowledge.md"
+      },
+      "ok": false
+    },
+    {
+      "step_index": 9,
+      "thought": "The knowledge.md file is at context/knowledge.md, not doc/knowledge.md. Let me read it to understand the data model.",
+      "action": "read_doc",
+      "action_input": {
+        "path": "knowledge.md"
+      },
+      "raw_response": "```json\n{\"thought\":\"The knowledge.md file is at context/knowledge.md, not doc/knowledge.md. Let me read it to understand the data model.\",\"action\":\"read_doc\",\"action_input\":{\"path\":\"knowledge.md\"}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "read_doc",
+        "content": {
+          "path": "knowledge.md",
+          "preview": "# Enterprise Data Governance Knowledge Guide for Database: Debit Card Specializing\n\n## 1. Introduction\nThis guide serves as a comprehensive semantic layer for the \"Debit Card Specializing\" database, providing authoritative definitions, metric formulations, and governance standards. It is designed to ensure consistent data interpretation and utilization across enterprise operations.\n\n## 2. Core Entities & Fields\n\n### Customers\n- **CustomerID**: Unique identifier for each customer.\n- **Segment**: Classification of customers into segments such as SME (Small and Medium Enterprises), LAM (Large Account Management), and KAM (Key Account Management).\n- **Currency**: Denotes the currency used by the customer for transactions, primarily 'EUR' (Euro) and 'CZK' (Czech Koruna).\n\n### YearMonth\n- **Date**: Represents the year and month of transactions in 'YYYYMM' format. The first four characters denote the year, and the fifth and sixth characters denote the month.\n- **Consumption**: Total consumption value for the specified period.\n\n### GasStations\n- **Country**: Represents the country where the gas station is located, e.g., 'CZE' for Czech Republic and 'SVK' for Slovakia.\n- **Segment**: Classification of gas stations, including 'Discount' stations.\n\n## 3. Metric Definitions\n\n### Key Performance Indicators (KPIs)\n- **Customer Currency Ratio**: \n  \\[\n  \\text{Ratio} = \\frac{\\text{Count of Customers paying in EUR}}{\\text{Count of Customers paying in CZK}}\n  \\]\n  This metric evaluates the proportion of customers using different currencies.\n\n- **Average Monthly Consumption**:\n  \\[\n  \\text{Average Monthly Consumption} = \\frac{\\text{Total Annual Consumption}}{12}\n  \\]\n  Used to assess monthly consumption trends.\n\n- **Consumption Difference by Currency**:\n  \\[\n  \\text{Difference} = \\text{Total Consumption by CZK Customers} - \\text{Total Consumption by EUR Customers}\n  \\]\n  Measures consumption variance between currency groups.\n\n- **Annual Average Consumption Difference**:\n  \\[\n  \\text{Difference} = \\frac{\\text{Total Consumption in Segment A}}{\\text{Number of Customers in Segment A}} - \\frac{\\text{Total Consumption in Segment B}}{\\text{Number of Customers in Segment B}}\n  \\]\n  Compares average consumption across different customer segments.\n\n- **Percentage Increase in Consumption**:\n  \\[\n  \\text{Percentage Increase} = \\left(\\frac{\\text{Consumption in 2013} - \\text{Consumption in 2012}}{\\text{Consumption in 2012}}\\right) \\times 100\n  \\]\n  Evaluates growth in consumption year-over-year.\n\n## 4. Constraints & Conventions\n\n### Temporal Boundaries\n- **Fiscal Year Format**: Represented as 'YYYYMM', where 'YYYY' is the year and 'MM' is the month. For example, the year 2012 is represented as '201201' to '201212'.\n\n### Currency Formatting\n- **Currency Codes**: Use ISO currency codes such as 'EUR' and 'CZK' for consistency.\n\n### Unit Conversion\n- **Consumption Units**: Ensure all consumption data is standardized in the same unit for accurate calculations.\n\n## 5. Exemplar Use Cases\n\n### Example 1: Customer Currency Ratio\n- **Metric**: Calculate the ratio of customers paying in EUR against those paying in CZK.\n- **Explanation**: This metric helps understand the currency preference among customers, aiding in currency risk management.\n\n### Example 2: Average Monthly Consumption for SME in 2013\n- **Metric**: Determine the average monthly consumption for SME customers in 2013.\n- **Explanation**: Provides insights into monthly consumption patterns, useful for forecasting and resource allocation.\n\n### Example 3: Consumption Difference in 2012\n- **Metric**: Calculate the difference in gas consumption between CZK and EUR-paying customers in 2012.\n- **Explanation**: Highlights consumption behavior differences based on currency, informing pricing strategies.\n\n### Example 4: Annual Average Consumption Difference\n- **Metric**: Compare the annual average consumption between SME and LAM segments.\n- **Explanation**: Assists in identifying consumption trends and segment perfor",
+          "truncated": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 10,
+      "thought": "I need to understand how customers link to gas stations. Let me check the gasstations.json structure and also look at the scanned database schema to see if there's a link between customers and gas stations.",
+      "action": "read_json",
+      "action_input": {
+        "path": "json/gasstations.json",
+        "max_chars": 2000
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to understand how customers link to gas stations. Let me check the gasstations.json structure and also look at the scanned database schema to see if there's a link between customers and gas stations.\",\"action\":\"read_json\",\"action_input\":{\"path\":\"json/gasstations.json\",\"max_chars\":2000}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "read_json",
+        "content": {
+          "path": "json/gasstations.json",
+          "preview": "{\n  \"table\": \"gasstations\",\n  \"records\": [\n    {\n      \"GasStationID\": 44,\n      \"ChainID\": 13,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Value for money\"\n    },\n    {\n      \"GasStationID\": 45,\n      \"ChainID\": 6,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Premium\"\n    },\n    {\n      \"GasStationID\": 46,\n      \"ChainID\": 23,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 47,\n      \"ChainID\": 33,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Premium\"\n    },\n    {\n      \"GasStationID\": 48,\n      \"ChainID\": 4,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Premium\"\n    },\n    {\n      \"GasStationID\": 49,\n      \"ChainID\": 13,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Value for money\"\n    },\n    {\n      \"GasStationID\": 50,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 51,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 52,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 53,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 54,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 55,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 56,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 57,\n      \"ChainID\": 10,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Other\"\n    },\n    {\n      \"GasStationID\": 58,\n      \"ChainID\": 4,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Premium\"\n    },\n    {\n      \"GasStationID\": 59,\n      \"ChainID\": 1,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Premium\"\n    },\n    {\n      \"GasStationID\": 60,\n      \"ChainID\": 1,\n      \"Country\": \"CZE\",\n      \"Segment\": \"Premium\"\n    },\n    {\n      \"GasStationID\": 61,\n      \"ChainID\": 1,\n      \"Country\": \"CZE\",\n ",
+          "truncated": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 11,
+      "thought": "I need to find CustomerIDs with transactions in June 2013 (201306) from the yearmonth table, then link them to GasStationIDs via the transactions_1k table, and finally get the countries from gasstations.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+        "sql": "SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'",
+        "limit": 200
+      },
+      "raw_response": "```json\n{\"thought\":\"I need to find CustomerIDs with transactions in June 2013 (201306) from the yearmonth table, then link them to GasStationIDs via the transactions_1k table, and finally get the countries from gasstations.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/tmp/data_agent_structured_v8r_ulzq.sqlite\",\"sql\":\"SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'\",\"limit\":200}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+          "columns": [
+            "CustomerID"
+          ],
+          "rows": [
+            [
+              "6"
+            ],
+            [
+              "7"
+            ],
+            [
+              "9"
+            ],
+            [
+              "20"
+            ],
+            [
+              "35"
+            ],
+            [
+              "37"
+            ],
+            [
+              "38"
+            ],
+            [
+              "39"
+            ],
+            [
+              "44"
+            ],
+            [
+              "48"
+            ],
+            [
+              "51"
+            ],
+            [
+              "52"
+            ],
+            [
+              "63"
+            ],
+            [
+              "73"
+            ],
+            [
+              "75"
+            ],
+            [
+              "77"
+            ],
+            [
+              "82"
+            ],
+            [
+              "87"
+            ],
+            [
+              "92"
+            ],
+            [
+              "96"
+            ],
+            [
+              "100"
+            ],
+            [
+              "101"
+            ],
+            [
+              "103"
+            ],
+            [
+              "104"
+            ],
+            [
+              "105"
+            ],
+            [
+              "106"
+            ],
+            [
+              "114"
+            ],
+            [
+              "117"
+            ],
+            [
+              "122"
+            ],
+            [
+              "123"
+            ],
+            [
+              "128"
+            ],
+            [
+              "137"
+            ],
+            [
+              "144"
+            ],
+            [
+              "160"
+            ],
+            [
+              "166"
+            ],
+            [
+              "169"
+            ],
+            [
+              "172"
+            ],
+            [
+              "175"
+            ],
+            [
+              "193"
+            ],
+            [
+              "201"
+            ],
+            [
+              "204"
+            ],
+            [
+              "210"
+            ],
+            [
+              "212"
+            ],
+            [
+              "214"
+            ],
+            [
+              "215"
+            ],
+            [
+              "216"
+            ],
+            [
+              "220"
+            ],
+            [
+              "224"
+            ],
+            [
+              "227"
+            ],
+            [
+              "230"
+            ],
+            [
+              "232"
+            ],
+            [
+              "233"
+            ],
+            [
+              "235"
+            ],
+            [
+              "236"
+            ],
+            [
+              "254"
+            ],
+            [
+              "256"
+            ],
+            [
+              "272"
+            ],
+            [
+              "274"
+            ],
+            [
+              "281"
+            ],
+            [
+              "283"
+            ],
+            [
+              "285"
+            ],
+            [
+              "289"
+            ],
+            [
+              "296"
+            ],
+            [
+              "305"
+            ],
+            [
+              "314"
+            ],
+            [
+              "322"
+            ],
+            [
+              "323"
+            ],
+            [
+              "324"
+            ],
+            [
+              "331"
+            ],
+            [
+              "335"
+            ],
+            [
+              "337"
+            ],
+            [
+              "339"
+            ],
+            [
+              "342"
+            ],
+            [
+              "344"
+            ],
+            [
+              "345"
+            ],
+            [
+              "346"
+            ],
+            [
+              "348"
+            ],
+            [
+              "349"
+            ],
+            [
+              "370"
+            ],
+            [
+              "373"
+            ],
+            [
+              "381"
+            ],
+            [
+              "382"
+            ],
+            [
+              "392"
+            ],
+            [
+              "394"
+            ],
+            [
+              "407"
+            ],
+            [
+              "408"
+            ],
+            [
+              "419"
+            ],
+            [
+              "420"
+            ],
+            [
+              "421"
+            ],
+            [
+              "423"
+            ],
+            [
+              "424"
+            ],
+            [
+              "427"
+            ],
+            [
+              "431"
+            ],
+            [
+              "448"
+            ],
+            [
+              "453"
+            ],
+            [
+              "465"
+            ],
+            [
+              "475"
+            ],
+            [
+              "484"
+            ],
+            [
+              "496"
+            ],
+            [
+              "500"
+            ],
+            [
+              "504"
+            ],
+            [
+              "505"
+            ],
+            [
+              "509"
+            ],
+            [
+              "519"
+            ],
+            [
+              "522"
+            ],
+            [
+              "524"
+            ],
+            [
+              "531"
+            ],
+            [
+              "533"
+            ],
+            [
+              "534"
+            ],
+            [
+              "536"
+            ],
+            [
+              "539"
+            ],
+            [
+              "542"
+            ],
+            [
+              "544"
+            ],
+            [
+              "548"
+            ],
+            [
+              "551"
+            ],
+            [
+              "559"
+            ],
+            [
+              "560"
+            ],
+            [
+              "576"
+            ],
+            [
+              "579"
+            ],
+            [
+              "580"
+            ],
+            [
+              "583"
+            ],
+            [
+              "591"
+            ],
+            [
+              "592"
+            ],
+            [
+              "598"
+            ],
+            [
+              "600"
+            ],
+            [
+              "602"
+            ],
+            [
+              "603"
+            ],
+            [
+              "607"
+            ],
+            [
+              "615"
+            ],
+            [
+              "619"
+            ],
+            [
+              "623"
+            ],
+            [
+              "633"
+            ],
+            [
+              "634"
+            ],
+            [
+              "640"
+            ],
+            [
+              "643"
+            ],
+            [
+              "644"
+            ],
+            [
+              "645"
+            ],
+            [
+              "647"
+            ],
+            [
+              "649"
+            ],
+            [
+              "650"
+            ],
+            [
+              "651"
+            ],
+            [
+              "653"
+            ],
+            [
+              "654"
+            ],
+            [
+              "656"
+            ],
+            [
+              "657"
+            ],
+            [
+              "658"
+            ],
+            [
+              "660"
+            ],
+            [
+              "661"
+            ],
+            [
+              "665"
+            ],
+            [
+              "670"
+            ],
+            [
+              "671"
+            ],
+            [
+              "672"
+            ],
+            [
+              "677"
+            ],
+            [
+              "678"
+            ],
+            [
+              "679"
+            ],
+            [
+              "681"
+            ],
+            [
+              "683"
+            ],
+            [
+              "684"
+            ],
+            [
+              "686"
+            ],
+            [
+              "688"
+            ],
+            [
+              "689"
+            ],
+            [
+              "690"
+            ],
+            [
+              "693"
+            ],
+            [
+              "694"
+            ],
+            [
+              "700"
+            ],
+            [
+              "703"
+            ],
+            [
+              "704"
+            ],
+            [
+              "711"
+            ],
+            [
+              "715"
+            ],
+            [
+              "716"
+            ],
+            [
+              "718"
+            ],
+            [
+              "722"
+            ],
+            [
+              "726"
+            ],
+            [
+              "727"
+            ],
+            [
+              "730"
+            ],
+            [
+              "731"
+            ],
+            [
+              "732"
+            ],
+            [
+              "738"
+            ],
+            [
+              "739"
+            ],
+            [
+              "744"
+            ],
+            [
+              "746"
+            ],
+            [
+              "747"
+            ],
+            [
+              "752"
+            ],
+            [
+              "755"
+            ],
+            [
+              "757"
+            ],
+            [
+              "761"
+            ],
+            [
+              "764"
+            ],
+            [
+              "767"
+            ],
+            [
+              "773"
+            ],
+            [
+              "774"
+            ],
+            [
+              "776"
+            ],
+            [
+              "778"
+            ],
+            [
+              "789"
+            ],
+            [
+              "793"
+            ],
+            [
+              "796"
+            ],
+            [
+              "804"
+            ],
+            [
+              "808"
+            ],
+            [
+              "815"
+            ],
+            [
+              "818"
+            ],
+            [
+              "819"
+            ]
+          ],
+          "row_count": 200,
+          "truncated": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 12,
+      "thought": "I have CustomerIDs with June 2013 transactions. Now I need to link them to GasStationIDs via transactions_1k table, then get countries from gasstations. Let me use the link tool to connect yearmonth to transactions.",
+      "action": "link",
+      "action_input": {
+        "left_db_path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+        "left_table": "yearmonth",
+        "left_field": "CustomerID",
+        "right_source": "db/transactions_1k.db",
+        "contains": "201306",
+        "top_k": 5
+      },
+      "raw_response": "```json\n{\"thought\":\"I have CustomerIDs with June 2013 transactions. Now I need to link them to GasStationIDs via transactions_1k table, then get countries from gasstations. Let me use the link tool to connect yearmonth to transactions.\",\"action\":\"link\",\"action_input\":{\"left_db_path\":\"/tmp/data_agent_structured_v8r_ulzq.sqlite\",\"left_table\":\"yearmonth\",\"left_field\":\"CustomerID\",\"right_source\":\"db/transactions_1k.db\",\"contains\":\"201306\",\"top_k\":5}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "link",
+        "content": {
+          "link_count": 5,
+          "links": [
+            {
+              "left": {
+                "db_path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+                "table_name": "yearmonth",
+                "row": {
+                  "CustomerID": "6",
+                  "Date": "201306",
+                  "Consumption": "573.85"
+                }
+              },
+              "right": {
+                "path": "db/transactions_1k.db",
+                "record_type": "text_chunk",
+                "record_id": "db/transactions_1k.db#chunk:1",
+                "text": "SQLite format 3\u0000\u0010\u0000\u0001\u0001\u0000@  \u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0002\u0000.v�\n\u0000\u0000\u0000\u0002\u000eS\u0000\u000e�\u000eS\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000P\u0002\u0006\u0017++\u0001Ytablesqlite_sequencesqlite_sequence\u0003CREATE TABLE sqlite_sequence(name,seq)�X\u0001\u0007\u0017++\u0001�gtabletransactions_1ktransactions_1k\u0002CREATE TABLE \"transactions_1k\"\n(\n    TransactionID INTEGER\n        primary key autoincrement,\n    Date          DATE,\n    Time          TEXT,\n    CustomerID    INTEGER,\n    CardID        INTEGER,\n    GasStationID  INTEGER,\n    ProductID     INTEGER,\n    Amount        INTEGER,\n    Price         REAL\n)\u0005\u0000\u0000\u0000\f\u000f�\u0000\u0000\u0000\u0000\u0010\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u000f�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u000f�O\u0000\u0000\u0000\u000e�~\u0000\u0000\u0000\n�-\u0000\u0000\u0000\f�\\\u0000\u0000\u0000\u000b�\u000b\u0000\u0000\u0000\n�:\u0000\u0000\u0000\t�i\u0000\u0000\u0000\b�\u0018\u0000\u0000\u0000\u0007�G\u0000\u0000\u0000\u0006�v\u0000\u0000\u0000\u0005�%\u0000\u0000\u0000\u0004S\n\u0000\u0000\u0000\u0001\u000f�\u0000\u000f�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0014\u0001\u0003+\u0002transactions_1k\u0003�\n\u0000\u0000\u0000S\u0000�\u0000\u000f�\u000f�\u000fr\u000fC\u000f\u0014\u000e�\u000e�\u000e�\u000eY\u000e*\n�\n�\n�\nn\n@\n\u0011\f�\f�\f�\fT\f$\u000b�\u000b�\u000b�\u000bf\u000b6\u000b\u0007\n�\n�\ny\nI\n\u001a\t�\t�\t�\t^\t/\b�\b�\b�\bq\bA\b\u0011\u0007�\u0007�\u0007�\u0007U\u0007&\u0006�\u0006�\u0006�\u0006m\u0006>\u0006\u000f\u0005�\u0005�\u0005�\u0005V\u0005(\u0004�\u0004�\u0004�\u0004n\u0004?\u0004\u0010\u0003�\u0003�\u0003�\u0003S\u0003$\u0002�\u0002�\u0002�\u0002f\u00027\u0002\b\u0001�\u0001�\u0001z\u0001Q\u0001!\u0000�\u0000�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000,S\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2417:31:00SX\t\n�\nF\u000f@H5\\(�-R\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2415:24:00\u0000�l\u0007��\nF\u000f@@��\\).Q\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2414:43:00\u0000��\t��\nF\u0002\u0016@~b�Q�\u001f'P\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00022012-08-2410:40:00\u0017�\u0006�S\u0004�\u0002D\u0006\u0018-O\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:18:00\u0017�\u0006�T\u0004�\u0002\n@m\b\u0000\u0000\u0000\u0000\u0000-N\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:12:00\u0017�\u0006�T\u0004�\u0002\t@h��\n=p�.M\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2409:18:00\u0000��\t\u0014O\u0004�\u0002\u0017@��\n=p��-L\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:40:00x_\bw�\u0004�\u0002\u001b@��33333-K\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:53:00{7\u000bx�\u0004�\u0005\u0006@`��\\(��-J\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:22:00xu\n�9\u0005�\u0005\u0002@KFfffff.I\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:13:00\u0000��\u0006&�\u0005�\u0002\u001a@��\\(�.H\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2412:08:00\u0000��\u00055\u0013\u0005�\u0002\u0016@������-G\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:25:00xu\n�<\u0005�\u0002\u001c@��G�\u0014z�-F\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2419:21:00\u001e�\t�K\u000b�\u0002 @���\u001e�R.E\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2406:11:00\u0000�:\b��\u0004�\u0005\u0002@K���\n=q-D\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:53:00<W\nwG\u000e\u001b\u0005\u0007@c��Q�\u001f-C\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:45:00K�\u0006�%\u000e\u001b\u0002\u0014@{�(�\\-B\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2400:34:00FZ\u0007�\u0000�\u0002\u001d@�\u001d\n=p��-A\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2322:59:00FZ\tw\u001c\u0000�\u0002!@�r�\\(��-@\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:59:00J�\u0006w<\fP\u0002\u001a@�\"�\\)-?\n\u0000!\u001d\u0003\u0003\u0001\u0001\u0001\u00072012-08-2417:25:00\u0000��\nX�0\u0002\u001a@��\\(�,>\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2417:24:00%�\u0007`+0\u0002\u000f@u��\u001e�R-=\n\u0000!\u001d\u0003\u0003\u0001\u0001\u0001\u00072012-08-2416:39:00\u0000��\n�[0\u0002 @�9�\u001e�Q�,<\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2411:31:00J�\u0007A�0\t\"@�)�\u0014z�H,;\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2411:19:00k\"\u0007��0\u00020@�>�\\(��,:\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2410:06:00#�\u0007��0\u0002\u0017@���G�\u0014{,9\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2409:47:00N�\b��0\u0002\u0018@�e�\u0014z�H,8\n\u0000!\u001d\u0003\u0003\u0001\u0001\b\u00072012-08-2409:16:00\u0000�Z\n��0\u0018@.��\u001e�R-7\n\u0000!\u001d\u0003\u0003\u0001\u0001\u0001\u00072012-08-2409:16:00\u0000�Z\n��0\u0002\u001d@���\\(��-6\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:38:00 u\n*�\u0005\u0012\u0002\u001f@��\\(�-5\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2403:53:00\u0015\u0005\bC\u0015\u0005\u0012\u0002\u001e@�.�����,4\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2406:18:00ta\u0007%�0\u0002\u001b@��Q�\u001e�,3\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2405:50:00\u0017_\u0006�\u00180\u0002%@�}�����-2\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2405:09:00wR\b��\f�\u0005\u0007@c\u0007\n=p��,1\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2404:43:00\b�\n\"�\u0004�\u000f@B!G�\u0014z�-0\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:43:00\b�\n\"�\u0004�\u0002\f@p$�\\)-/\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2321:20:00%�\b��\u0004�\u0002[@�*�\n=p�-.\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2418:15:00\u0015\u001c\b\u0013\u0012\u0004�\u0002\u001e@�N\u0014z�G�--\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:03:00Oa\n/�\f�\u0016\u0012@dK�\n=p�-,\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:52:00&�\t\u0007I\f�\u0002\u0010@uxz�G�\u0014.+\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0002\u00072012-08-2412:42:005a\u0007Mv\f�\u0002\u0001\b@��}p��\n.*\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:43:00\u0000�3\b6�\f�\u0002\u0016@}�G�\u0014z�-)\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:16:000�\t��\f�\u0002\u001b@���G�\u0014{-(\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:23:00*�\bn\u0011\f�\u0002\u001b@�i�����.'\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2418:34:00\u0000��\u0005n�\u0004�\u0005\u0006@_\u000333333.&\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2417:05:00\u0000��\b`�\u0004�\u0002\u0017@\u0005p��\n=-%\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2405:39:005r\n�\u001a\f*\u0002\u001c@���\\)-$\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2320:12:00[+\t��\f*\u0005\u0003@S\u001a�G�\u0014{-#\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:59:00P\u0014\u0007�\\\u0004�\u0002\u001a@�c�\u001e�R-\"\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:51:001�\bHd\u0004�\u0002\u001e@�\u000f�����-!\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:54:00~�\t�\u0003�\u0005\u0006@cv\u0014z�G�- \n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:48:00\u0016�\t�!\u0003�\u0002\u0017@�\u0002�����.\u001f\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2413:19:00\u0000�$\n/K\u0003�\u0002\u0016@�\u0000Q�\u001e�.\u001e\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2406:27:00\u0000�c\n7$\u0003�\t\u001c@�\u001e�G�\u0014{-\u001d\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:19:00%�\t)�\u0003�\u0002\u001a@�\u0018fffff-\u001c\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2405:02:00\u001bN\u0001;<\u0003�\u0002\u0016@�:�\\)-\u001b\n\u0000!\u001d\u0003\u0003\u0002\u0001\t\u00072012-08-2320:19:00\u0000�|\u000b�\u0003�\u0017@^�=p��\n.\u001a\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2320:19:00\u0000�|\u000b�\u0003�\u0002\u0016@�Dz�G�\u0014.\u0019\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2418:50:00\u0000�\u001d\u000b\u0014\u0006\u0002�\u0005\u0003@R0��\n=q-\u0018\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2418:03:00M\u0014\b��\u0002|\u0002\u001f@�0\u0014z�G�.\u0017\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:55:00\u0000�F\u0007\u0017�\u0002|\u0005\u0004@U\u0000��\n=q-\u0016\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:31:00m�\t�t\u0002|\u0005\u0006@bl(�\\.\u0015\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:27:00\u0000�(\b,b\u0002|\u0002\u0018@��\\(�-\u0014\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:25:00G�\n��\u0002|\u0002\u0019@���\u001e�R.\u0013\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:18:00\u0000�\u001f\u0006�#\u0002|\u0002\u0017@���\n=q-\u0012\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:32:00x�\b��\u0003�\u0002\u001b@�:(�\\-\u0011\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:56:001�\n�\u0003�\u0002\u001a@�\u001a\u0014z�G�-\u0010\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:47:00x�\u000b\u0017\u000b\u0003�\u0002\u001e@�]\n=p��,\u000f\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2409:36:009�\b�W\u0003�\u0007@N=p��\n=-\u000e\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:42:00\u001d�\u000b7�\u0003�\u0005\u0004@YU\u001e�Q�-\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:23:00\u001d�\u000b8�\u0003�\u0005\u0004@Y:�G�\u0014{-\f\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:19:00x�\u000b\u0017\f\u0003�\u0002\u0014@||\u0000\u0000\u0000\u0000\u0000-\u000b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:46:00M�\bSa\u000f\u001d\u0002\u001b@�\u001afffff-",
+                "metadata": {
+                  "chunk_index": 1
+                }
+              },
+              "matched_value": "6",
+              "match_type": "structured_to_text"
+            },
+            {
+              "left": {
+                "db_path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+                "table_name": "yearmonth",
+                "row": {
+                  "CustomerID": "6",
+                  "Date": "201306",
+                  "Consumption": "573.85"
+                }
+              },
+              "right": {
+                "path": "db/transactions_1k.db",
+                "record_type": "text_chunk",
+                "record_id": "db/transactions_1k.db#chunk:2",
+                "text": "\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:38:00J�\u000b\u0016�\u0002|\u0002\u0015@}��G�\u0014{-\t\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:01:00C�\u000b!+\u0002|\u0002\"@�\u0018z�G�\u0014,\b\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2414:01:00C�\u000b!+\u0002|\u000b@5�\u0000\u0000\u0000\u0000\u0000-\u0007\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:20:00CY\b�\u001c\u0004�\u0005\u0004@T|(�\\-\u0006\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:53:00\u001e�\u0001��\u0002�\u0005\u0004@X5\\(�-\u0005\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:49:00C�\b.-\u0002�\u0002\u001c@�(fffff-\u0004\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:53:00\u001d�\np�\u0002�\u0005\u0005@^/\\(�-\u0003\n\u0000!\u001d\u0003\u0003\u0002\u0001\t\u00072012-08-2410:03:00\u0000�s\bd�\u000ex\u0017@^\\(�.\u0002\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:03:00\u0000�s\bd�\u000ex\u0002\u0012@z�\u001e�Q�-\u0001\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:41:00{7\u0007l�\u000ex\u0002\u001c@�\u0005\u001e�Q�\n\u0000\u0000\u0000R\u0000�\u0000\u000f�\u000f�\u000fr\u000fC\u000f\u0014\u000e�\u000e�\u000e�\u000e^\u000e5\u000e\u0006\n�\n�\nz\nK\n\u001c\f�\f�\f�\f_\f/\f\u0000\u000b�\u000b�\u000bs\u000bC\u000b\u0014\n�\n�\n�\nX\n)\t�\t�\t�\tl\t=\t\u000e\b�\b�\b�\bQ\b\"\u0007�\u0007�\u0007�\u0007b\u00071\u0007\u0000\u0006�\u0006�\u0006o\u0006?\u0006\u0010\u0005�\u0005�\u0005\u0005O\u0005\u001f\u0004�\u0004�\u0004�\u0004^\u0004-\u0003�\u0003�\u0003�\u0003l\u0003=\u0003\n\u0002�\u0002�\u0002}\u0002M\u0002\u001d\u0001�\u0001�\u0001�\u0001]\u0001-\u0000�\u0000�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000-�%\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:36:00b�\u000b�3\u000eS\u0002\u000b@q,(�\\-�$\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:28:00\u001a�\t%W\u0000�\u0005\u0007@cQ�\u001e�R-�#\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:23:00oo\n�+\u0000�\u0002\u001b@����\n=q-�\"\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:24:00B�\b�?\u0000�\u0002\u0019@�P�Q�\u001f-�!\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:04:00=L\tUh\u0001\u0004\u0002\u0019@�\u0005�\u001e�R-� \n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:57:00P�\b\u001c�\n�\u0002\u001b@���\\)-�\u001f\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:06:00\u001e]\b�<\n�\u0002#@��\n=p��-�\u001e\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:14:00T�\u0007��\n�\u0005\u0006@a�Q�\u001e�-�\u001d\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2405:00:00xu\n�j\n�\u0002\n@l\u0019G�\u0014z�-�\u001c\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:20:00q.\b`�\u0000�\u0002\u0015@|�=p��\n-�\u001b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:13:00Vk\bT\t\u0000�\u0002\u0019@�P�Q�\u001f-�\u001a\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:53:00y�\n�\u0014\u0000�\u0002\u001e@�1\\(�-�\u0019\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2418:33:00*:\bY5\u0005�\u0002\u001f@��(�\\,�\u0018\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2418:27:00I�\u000b-�\u0005�\u0005@=\u001c(�\\-�\u0017\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:51:00\u001de\u000b\u0007z\u0000�\u0005\u0004@Y]p��\n=.�\u0016\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2409:15:00\u0000� \tn�\f�\u0005\u0003@R\u0001�\u001e�R-�\u0015\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:14:00W\u0003\n�b\f�\u0002#@�8�Q�\u001f-�\u0014\n\u0000!\u001d\u0003\u0003\u0002\u0001\t\u00072012-08-2414:41:00\u0000�1\tEi\f�\u0017@^�=p��\n.�\u0013\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2414:41:00\u0000�1\tEi\f�\u0002$@�t(�\\-�\u0012\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2413:35:00\u0000��\tͭ\f�\u000f@EǮ\u0014z�H.�\u0011\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2413:35:00\u0000��\tͭ\f�\u0002\u0018@���\\(��,�\u0010\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2410:22:00\"�\u0007��\f�\u0005@<��G�\u0014{.�\u000f\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2409:31:00\u0000��\u000b\u0015�\f�\u0002\u001a@�z�\\(��-�\u000e\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:16:0013\n��\u000e\u0005\u0005\u0005@]\u0018�\\)-�\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:58:00R\u0018\b\u0006V\u000e\u0005\u0002\u0017@�ҏ\\(��.�\f\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:24:00\u0000��\b��\u0001u\u0002[@�ę����-�\u000b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:14:00,�\bE�\u0001u\u0005\u0002@LK�\u001e�Q�-�",
+                "metadata": {
+                  "chunk_index": 2
+                }
+              },
+              "matched_value": "6",
+              "match_type": "structured_to_text"
+            },
+            {
+              "left": {
+                "db_path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+                "table_name": "yearmonth",
+                "row": {
+                  "CustomerID": "6",
+                  "Date": "201306",
+                  "Consumption": "573.85"
+                }
+              },
+              "right": {
+                "path": "db/transactions_1k.db",
+                "record_type": "text_chunk",
+                "record_id": "db/transactions_1k.db#chunk:3",
+                "text": "\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:07:00,�\n�,\u0001u\u0005\u0005@\\\u0015\u001e�Q�,�\t\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2406:46:00~{\u000bI\u0010\u0001u\u0005@&ffffff-�\b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:37:00 \b\u0005�l\u0001u\u0005\u0005@\\\u0015\u001e�Q�-�\u0007\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:19:00xu\n��\u0001u\u0005\u0003@R\u0001�\u001e�R-�\u0006\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:26:00xu\u0007\u001c�\u0001u\u0002\"@��fffff.�\u0005\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2417:35:00\u0000��\t�t\u0001�\u0002\u0014@z��\n=p�.�\u0004\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:03:00\u0000�l\u0005J�\u0001�\u0005\u0006@`$(�\\.�\u0003\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:41:00\u0000�\u0013\u0007�|\u0001�\u0002\u000f@t�33333-�\u0002\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:34:00xu\n�i\u0001�\u0005\u0004@WHQ�\u001e�.�\u0001\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2409:00:00\u0000�\u000f\b�(\u0001�\u0002\u0019@��fffff-�\u0000\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:39:00M�\n��\u0001�\u0005\u0005@Z\u0010\u0000\u0000\u0000\u0000\u0000-\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:07:00\u001d/\b[Z\u0001�\u0005\u0004@W:�G�\u0014{-~\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:48:00\u001b0\n�\u0003\u0001�\u0005\u0002@J��\n=p�-}\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:42:00xu\n��\u0001�\u0005\u0005@Y�\\(��.|\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2405:32:00\u0000�\u000f\b�*\u0001�\u0002\u0016@}xz�G�\u0014,{\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2405:13:00\u001b0\n�3\u0001�\u0005@9�z�G�\u0014.z\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2404:22:00\u0000�\u000f\u0005wB\u0001�\u0002\u0019@�6\u0014z�G�-y\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:08:00z�\n\u0002�\u0003�\u0002!@��(�\\-x\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:42:00\u0018z\u0001\u000f�\u000e\u0007\u0002\u000e@s�p��\n=-w\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:41:00{7\ba�\u000e\u0007\u0002\u0018@�#33333.v\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2406:10:00\u0000�!\u000bw�\u000e\u0007\u0002\u001a@���G�\u0014{-u\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:04:00\u001a`\n�\u000e\u0007\u0005\u0006@b�\u001e�Q�-t\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:11:00[+\t��\n�\u0005\u0003@R�\\(�-s\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:38:000�\tú\f6\u0005\u0005@[;�\u001e�Q�-r\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:01:00 \b\u0005�n\n�\u0002!@�e\\(�-q\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:37:00\u001b\u0012\n�\u001f\n�\u0005\u0005@^\u0000��\n=q-p\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:31:00[+\t��\n�\u0005\u0003@S��G�\u0014{-o\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:47:00{7\u0007��\u0004/\u0005\u0006@b\u0000Q�\u001e�-n\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:56:00\u001b\n\u000b\u0006�\u0004/\u0002\u001b@��Q�\u001e�.m\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:29:00\u0000�\u0006\u000bG�\u0005�\u0002\u0019@�|Q�\u001e�-l\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:28:00VJ\bS�\u0001�\u0002\u0007@c��\n=p�-k\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:05:00\u0015�\u0000߱\u0004�\u0002\u0017@��G�\u0014z�-j\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:01:001�\t��\u0004�\u0002\u001a@�>(�\\-i\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:51:00op\u0007K�\u0002�\u0002\u0019@�_�\u0014z�H.h\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2400:49:00\u0000��\t>�\f1\u0002\"@�\u0007\n=p��.g\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2322:42:00\u0000��\u0005��\f1\u0002$@���\u001e�Q�-f\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:51:00{7\u000b\u0013�\u0005�\u0005\u0006@a]p��\n=-e\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:17:00!;\n#�\u0005�\u0002\u0019@��z�G�\u0014-d\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:10:00J�\n+�\u0005�\u0005\u0005@]��\u001e�R-c\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:16:00>\u001b\bݟ\u0005�\u0002~@�2Q�\u001e�-b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:19:00m�\n̙\u0004�\u0002\u0019@�=�\u001e�R-a\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:40:008\"\u0002\u0005\u0004�\u0002\n@rj�G�\u0014{-`\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:13:00k�\n\u0012{\u0004�\t+@��\u0014z�G�,_\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2409:13:00k�\n\u0012{\u0004�\u0012@S��\u0014z�H-^\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:41:00\u001d�\n'�\u0004�\u0005\u0003@P��\u001e�R']\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00022012-08-2323:00:00x�\u0006V`\u0004�\u0002\u001f\u0002�-\\\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:12:00q�\u0007��\u0004�\u0005\u0005@^R�\\(��-[\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:05:00\u0017�\u0007X�\u0004�\u0002\u0019@�\u000733333-Z\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:55:00\u0017�\u0007X�\u0004�\u0002\u0015@}�(�\\'Y\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00022012-08-2411:46:00\u0017�\u0007X�\u0004�\u0002\u001f\u0002�-X\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:30:00\u0017�\u0007X�\u0004�\u0002A@�9�\u001e�Q�-W\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2417:54:00\u0000��\b�p\nF\f@dz�G�\u0014{-V\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2417:54:00\u0000��\b�p\nF\u000b@8��\u001e�R-U\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2417:54:00\u0000��\b�p\nF\u000f@K�(�\\.T\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2417:54:00\u0000��\b�p\nF\u0002\u0017@�\u0005\\(�\n\u0000\u0000\u0000Q\u0000�\u0000\u000f�\u000f�\u000fp\u000f?\u000f\u000f\u000e�\u000e�\u000e~\u000eN\u000e\u001e\n�\n�\n�\n_\n/\f�\f�\f�\fm\f=\f\f\u000b�\u000b�\u000b|\u000bL\u000b\u001c\n�\n�\n�\n\\\n,\t�\t�\t�\tk\t;\t\f\b�\b�\b{\bK\b\u001c\u0007�\u0007�\u0007�\u0007\\\u0007,\u0006�\u0006�\u0006�\u0006l\u0006<\u0006\f\u0005�\u0005�\u0005}\u0005N\u0005\u001f\u0004�\u0004�\u0004�\u0004_\u0004/\u0004\u0000\u0003�\u0003�\u0003p\u0003@\u0003\u000f\u0002�\u0002�\u0002\u0002O\u0002\u001f\u0001�\u0001�\u0001�\u0001a\u00010\u0000�\u0000�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000-�v\n\u0000!\u001d\u0002\u0003\u0002\u0002\b\u00072012-08-2411:24:00\u0010�\u000b0#\u0013D\u0001P?�(�\\).�u\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2415:34:00\n\u0006\u000b\u0015n\u0012T\u0001BX@U�(�\\.�t\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2412:12:00\u000fr\t�;\u0012T\u0001=\u0011@.ffffff-�s\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:29:00M�\u0006�H\u0003�\u0002\u001b@�N(�\\,�r\n\u0000!\u001d\u0003\u0003\u0001\u0001\b\u00072012-08-2408:57:00\u0000�\n\u0007�na\f@;��\n=q,�q\n\u0000!\u001d\u0003\u0003\u0001\u0001\b\u00072012-08-2408:57:00\u0000�\n\u0007�na\u000f@<�\\(�-�p\n\u0000!\u001d\u0003\u0003\u0001\u0001\u0001\u00072012-08-2408:57:00\u0000�\n\u0007�na\u0002\u0011@x��\\)-�o\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:54:00p�\n�p\u0000�\u0002\u0019@��\u0014z�G�-�n\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:18:00x�\b�\u0006\u00011\u0002\"@��\u001e�Q�-�m\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:42:00+�\n��\u00011\u0005\u0007@co\n=p��-�l\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:28:00?�\t\u000b�\u00011\u0002\u001f@�\nfffff-�k\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:22:00.\u0003\u0002,B\u0003R\u0002\u001a@��\n=p��.�j\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2414:36:00\u0000��\beD\n�\u0002\u001e@�T\u0014z�G�-�i\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:57:00\u001d/\tǳ\nB\u0002\u0018@�J��\n=q-�h\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:05:00M�\u0007<\u0019\n�\u0002\u0019@�0��\n=q-�g\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:20:00!;\t��\nD\u0002\u001e@�\u000f�����-�f\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:56:00m�\n-;\u0001�\u0002\u0003@M��\u0014z�H,�e\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2410:08:00g�\u0007��\u0001�\u0005@98Q�\u001e�-�d\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2405:12:00\u001b\u0012\n� \u0001�\u00029@���\n=p�-�c\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:49:00\u0017\u0011\u0007��\nD\u0002\u001c@�#�����-�b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:17:00\u0015C\b�\u0014\nD\u0005\u0002@M\u0005\u001e�Q�-�a\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:19:00\u0004�\t7�\nD\u0002\"@�p��\n=q-�`\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:04:00-\u0004\t�R\nD\u0002\u001e@���\\(��,�_\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2407:01:00\u0013�\u0007XX\nD\u000f@CXQ�\u001e�,�^\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2408:42:00%\u0004\nbg\n�\u0017@^�=p��\n,�]\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2408:42:00%\u0004\nbg\n�\u000f@EǮ\u0014z�H-�\\\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:42:00%\u0004\nbg\n�\u0002\u001c@���\\)-�[\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:09:007\n�F\n�\u0005\u0005@\\:�G�\u0014{-�Z\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:07:00xu\n�m\n�\u0005\u0004@[��\u0014z�H-�Y\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:53:00\u001d�\t)H\n�\u0005\u0003@O������.�X\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2407:01:00\u0000�\u0003\u0006`�\n�\u0002+@�\u0018�\n=p�-�W\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:01:00\u0013�\u0007XX\nD\u0005\u0006@aFfffff,�V\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2406:32:00y�\b��\nD\u000f@EǮ\u0014z�H-�U\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:19:00C�\n��\u000ei\u0002\u001f@��p��\n=-�T\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:13:00!�\u0006\u0004�\u0002\u001f\u0005\u0003@Q#33333-�S\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:16:00\u001c\u0000\n�\n�\u0002\u000f@u?\n=p��-�R\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:34:00\u0015\u0005\bB�\u0001Y\u0002=@�\u0003(�\\-�Q\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:25:00\u0015\u0005\nG!\u0001Y\u0005\u0002@FУ�\n=q-�P\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:20:00{�\n^a\u0001Y\u0002\u001a@�\u001f�\u001e�Q�,�O\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2417:17:00\u0015\u0005\bB�\u0001Y\u0017@^�=p��\n-�N\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:17:00\u0015\u0005\bB�\u0001Y\u0002!@��p��\n=-�M\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:44:00\u001d/\u0001L�\u0001Y\u0005\u0003@P��\u001e�R-�L\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:23:00@}\u0007-�\u0001Y\t\u0019@�+G�\u0014z�.�K\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2416:47:00\u0000��\n\u0001H\u0002\u001b\u0002o@�\u000b�\\),�J\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2411:49:00+�\b�\u0011\u0002\u001b\u0017@G��\\)-�I\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:49:00+�\b�\u0011\u0002\u001b\u0002\u0016@}�=p��\n.�H\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2408:36:00\u0000�d\b�\u0001Y\u0002\u0017@������-�G\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:13:00\u0015\u0005\bC\u0005\u0001Y\u0002\u0011@w�33333-�F\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:31:002�\b��\u0003�\u0005\u0005@\\\u001333333-�E\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:56:00\u0018\u000e\b�t\u000e�\u0005\u0004@X�\\(�-�D\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:56:00*�\t}�\u0002p\u0002\u001e@���\n=p�,�C\n\u0000!\u001d\u0002\u0003\u0001\u0001\u0001\u00072012-08-2404:57:00-\t\b`yi\u0005\u0005@[Ffffff-�B\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2418:44:00\u00151\n�:\u0002\"\u0002\u0011@v�\u0014z�G�.�A\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2417:01:00\u0000��\b!�\u0002\"\u0002\u0016@~o�\u001e�Q�-�@\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:44:00?�\u000b��\u0002\"\u0002\u0007@c��\u001e�Q�-�?\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:34:00-M\u0002'6\u0002\"\u0002\u0015@|�\u001e�Q�-�>\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:25:00M�\ts�\u0002\"\u0002\u0019@���\u001e�Q�-�=\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:53:00?~\t��\u0002\"\u0002\u0013@y}p��\n=-�<\n\u0000!\u001d\u0003\u0003\u0002\u0001\t\u00072012-08-2411:08:00\u0000��\u000b>�\u000b�\u0005@+.\u0014z�G�-�;\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:33:00F\u0016\u000b\u001d \u000b�\u0002\u0018@��\u0014z�G�.�:\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2413:47:00\u0000��\u000b\u0015x\u0001[\u0002\u0016@~k�\u001e�Q�-�9\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2410:40:00\u0000�x\u0007�\u0012\u0002~\u000b@RhQ�\u001e�.�8\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:40:00\u0000�x\u0007�\u0012\u0002~\u0002\u0018@�9p��\n=-�7\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:11:00!�\n\u001en\f\u0017\u0005\u0005@]��\n=p�-�6\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:14:00v�\b\n�\u0005\n\u0014\u001d@���\\(��.�5\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2413:54:00\u0000�Q\u000b\u0017�\u0002U\u0002\u0019@��\\(�-�4\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:56:005@\b`�\f>\u0005\u0007@e\u001a�G�\u0014{-�3\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:04:00\u001et\u0007��\f>\u0002\u001a@��33333,�2\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2414:00:00J�\b��\f>\u0017@^�=p��\n-�1\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:00:00J�\b��\f>\u0002\u0014@~5\u001e�Q�-�0\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:11:00U\u0017\t��\u0003�\u0014/@�\t�\u0014z�H-�/\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:32:00\u001d�\u000b7�\f�\u0005\u0005@]Q�\u001e�R-�.\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2414:26:00\u0000�7\u0007g(\f�\u000f@H5\\(�.�-\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2414:26:00\u0000�7\u0007g(\f�\t.@�Cz�G�\u0014-�,\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:56:00i�\b��\u0006 \u0002\u0005@Zz�G�\u0014{-�+\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:56:00i�\tm�\u0006 \u0002\u000f@v\u0010�����-�*\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:24:00i�\tm�\u0006 \u0002\u0012@y�fffff.�)\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2412:27:00\u0000��\u0007i�\u0003�\u0005\u0005@_:=p��\n-�(\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:25:00{7\u0007�u\n�\u0002\u001b@��z�G�\u0014-�'\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:27:00\u001d�\u000b2R\n�\u0005\u0004@U�(�\\-�&\n\u0000!\u001d\u0003\u0003\u0002\u0001\t\u00072012-08-2406:08:00\u0000�Q\u000b\u0017�\u0002�\u0005@0aG�\u0014z�\n\u0000\u0000\u0000Q\u0000�\u0000\u000f�\u000f�\u000fl\u000f;\u000f\t\u000e�\u000e�\u000ev\u000eF\u000e\u0016\n�\n�\n�\nT\n#\f�\f�\f�\fh\f7\f\u0006\u000b�\u000b�\u000by\u000bH\u000b\u0018\n�\n�\n�\nU\n%\t�\t�\t�\te\t5\t\u0005\b�\b�\bt\bE\b\u0014\u0007�\u0007�\u0007�\u0007T\u0007#\u0006�\u0006�\u0006�\u0006b\u00062\u0006\u0002\u0005�\u0005�\u0005r\u0005B\u0005\u0012\u0004�\u0004�\u0004�\u0004U\u0004&\u0003�\u0003�\u0003�\u0003d\u00034\u0003\u0005\u0002�\u0002�\u0002w\u0002F\u0002\u0015\u0001�\u0001�\u0001�\u0001U\u0001%\u0000�\u0000�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000/�G\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0002\u00072012-08-2412:31:00\u0000��\n\u001a\u000b\tq\u0002\u0000�@�;�\\)-�F\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:30:00\u001d�\u000b8u\tq\u0005\u0006@`�\u0014z�G�-�E\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:40:00P1\t$�\tq\u0005\u0006@`k33333-�D\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:21:00/�\t�v\tq\u0002!@�\u0014\u0014z�G�-�C\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2406:25:00\u001ap\tsV\tq\u0002\u0019@�^�����-�B\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:32:00i�\t�>\tq\u0002\u000f@u\u0004�\\)-�A\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:27:00i�\t�>\tq\u00020@���G�\u0014{.�@\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:00:00\u0000��\t��\n�\u0005\u0005@[Ffffff.�?\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2414:47:00\u0000�F\u000b�\u0015\u000e�\u0002\u0015@}�(�\\,�>\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2413:13:00+�\u0007Q�\u000e�\u0017@^�=p��\n-�=\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:13:00+�\u0007Q�\u000e�\u0002\u001b@�\"��\n=q,�<\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2413:02:00\u0004!\b�\u000e�$@b�G�\u0014z�,�;\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2413:02:00\u0004!\b�\u000e�\u0017@^�=p��\n-�:\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:14:00U\u0007��\u000e�\u0002*@�M\u001e�Q�-�9\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:58:00\u00151\n��\u000e�\u0002\u0017@�_p��\n=-�8\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:25:00\u001d�\bM�\u000e�\t!@�\u0017\\(�.�7\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2410:01:00\u0000�\u0003\n��\u000e�\u0002\"@��33333.�6\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2409:27:00\u0000�m\tK\u001d\u000e�\t\u001c@��\u001e�Q�,�5\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2411:34:00\u00151\u0007\u0013�\u0010�H@@�\n=p��,�4\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2414:49:00\u0015�\bѠ\u0011L\u0017@q��\n=p�,�3\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2414:49:00\u0015�\bѠ\u0011L\u000f@R0��\n=q,�2\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2408:50:00_�\n�U\u0011L\u000f@EǮ\u0014z�H-�1\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2408:49:00^c\b��\u0011L\u0005\u0004@V�\\(�-�0\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:23:009v\b�e\u000f\u001f\u0002\u0013@{�G�\u0014z�-�/\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:13:008\"\n\u000e%\u0002\u0019@��\u0014z�G�-�.\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:58:00\u0017E\bL4\u000e%\u001f\u001f@��\u0014z�G�-�-\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:54:00{7\n\u001b�\u000e%\u0002\u0014@~�fffff-�,\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:44:00m�\u0007m�\u000e%\u0002\u0013@|q\u001e�Q�-�+\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:35:00*�\u0007\\�\u000e%\u0002\u0019@�K\\(�-�*\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2410:06:00J�\u0002��\u000e%\u0005\u0005@`�\n=p��-�)\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:52:00\u0017_\t[�\u000e%\u0002\u000e@u��\u001e�R.�(\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2408:29:00\u0000�8\u0007��\u000e%\u0002\u0019@�8��\n=q-�'\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2408:05:00\u0000�x\b_�\u000e%\u000f@8\u0017\n=p��-�&\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2407:38:00{7\u0004�&\u000e%\u0005\u0006@co�\u0014z�H.�%\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2418:43:00\u0000��\u000bH&\n�\u0002\u000f@t�33333-�$\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2405:28:009�\n�\u0019\n�\u0005\u0006@b@Q�\u001e�-�#\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:30:00/�\nb�\u0004\u0010\u0005\u0007@e��\\)-�\"\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:39:00t$\n�\"\u000f$\u0002)@�((�\\-�!\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2409:18:00t$\b��\u000f$\u0002.@�ZQ�\u001e�.� \n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2407:53:00\u0000��\t�*\u000f$\u0005\u0006@`�\\(�,�\u001f\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2407:13:00>�\tI�\u000f$\u000f@>k�\u001e�Q�-�\u001e\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2404:34:00+�\bߚ\u000f$\u0005\u0005@[���\n=q-�\u001d\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2419:10:00\u0015�\tf�\n�\u0002\n@s\u0005\\(�.�\u001c\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2418:09:00\u0000��\n��\n�\u0005\u0004@Y&fffff-�\u001b\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:01:00M�\b\u0003[\u000e2\u0005\u0004@U�\n=p��-�\u001a\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2421:08:00b�\u000b�'\n�\u0002\u0005@\\\u0018Q�\u001e�.�\u0019\n\u0000!\u001d\u0003\u0003\u0002\u0001\u0001\u00072012-08-2418:49:00\u0000�i\u0007��\n�\u0005\u0002@J޸Q�\u001f-�\u0018\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2417:47:00l�\b�t\n�\u0002 @�\u0013�\n=p�,�\u0017\n\u0000!\u001d\u0002\u0003\u0002\u0001\b\u00072012-08-2416:20:00\u0018�\n�l\n�\u000f@D�\\(�-�\u0016\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2416:20:00\u0018�\n�l\n�\u0005\u0004@Z*=p��\n-�\u0015\n\u0000!\u001d\u0002\u0003\u0002\u0002\t\u00072012-08-2413:53:00\u0012�\nD�\u0014\t\u0001U@\u001cz�G�\u0014{.�\u0014\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2413:53:00\u0012�\nD�\u0014\t\u0001B.@F������.�\u0013\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2411:40:00\n\u0018\u000b/B\u0014\t\u0001=\u0018@5+�\u001e�Q�.�\u0012\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2406:59:00\u000eG\u0000�|\u0014\t\u0001=\n@(\u0019�����-�\u0011\n\u0000!\u001d\u0002\u0002\u0002\u0002\u0001\u00072012-08-2414:59:00\u000b�r�\u0014\u000e\u0001B=@M�=p��\n-�\u0010\n\u0000!\u001d\u0002\u0003\u0002\u0002\t\u00072012-08-2411:11:00\u000b�\u0006\u001e�\u0014\u000e\u0001`@\u000e=p��\n=.�\u000f\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2411:11:00\u000b�\u0006\u001e�\u0014\u000e\u0001B$@An\u0014z�G�.�\u000e\n\u0000!\u001d\u0003\u0003\u0002\u0002\t\u00072012-08-2412:10:00\u0000�\u0018\u000b@�\u0014\b\u0001U@ (�\\)'�\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00012012-08-2417:51:00\t�\ny\n\u0013-\u0001=\u000e\n/�\f\n\u0000!\u001d\u0003\u0003\u0002\u0002\u0001\u00072012-08-2413:08:00\u0000��\n}�\u0013-\u0001=\u000f@+�=p��\n.�\u000b\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2404:58:00\t�\u0006��\u0013-\u0001=\u0017@4�\\(�.�",
+                "metadata": {
+                  "chunk_index": 3
+                }
+              },
+              "matched_value": "6",
+              "match_type": "structured_to_text"
+            },
+            {
+              "left": {
+                "db_path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+                "table_name": "yearmonth",
+                "row": {
+                  "CustomerID": "6",
+                  "Date": "201306",
+                  "Consumption": "573.85"
+                }
+              },
+              "right": {
+                "path": "db/transactions_1k.db",
+                "record_type": "text_chunk",
+                "record_id": "db/transactions_1k.db#chunk:4",
+                "text": "\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2406:28:00\f5\b��\u0014\u000b\u0001=\u0011@.�=p��\n.�\t\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2405:57:00\u000f,\u0000�q\u0014\u000b\u0001=\u001c@9�z�G�\u0014&�\b\n\u0000!\u001d\u0002\u0003\u0002\u0002\t\u00012012-08-2409:50:00\n'\u0000��\u0013�\u0001U\u0007.�\u0007\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2409:50:00\n'\u0000��\u0013�\u0001=\u0010@,�\u001e�Q�-�\u0006\n\u0000!\u001d\u0002\u0002\u0002\u0002\u0001\u00072012-08-2404:18:00\u000b�x�\u0013�\u0001B.@F�=p��\n.�\u0005\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2414:41:00\u0012�\nm�\u0011�\u0001L$@B\"�\\(��-�\u0004\n\u0000!\u001d\u0002\u0002\u0002\u0002\u0001\u00072012-08-2411:57:00\n�ft\u0012V\u0001=\u000e@)aG�\u0014z�.�\u0003\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2417:09:00\u000b\u0017\t\u0005t\u0011�\u0001=\b@\u001dffffff.�\u0002\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2414:36:00\u000f�\nE�\u0011�\u0001=\u0014@1�\\(�-�\u0001\n\u0000!\u001d\u0002\u0003\u0002\u0002\t\u00072012-08-2413:52:00\u0011�\b��\u0011�\u0001U@#333333-�\u0000\n\u0000!\u001d\u0002\u0003\u0002\u0002\t\u00072012-08-2413:52:00\u0011�\b��\u0011�\u0001P@-Q�\u001e�R-�\n\u0000!\u001d\u0002\u0003\u0002\u0002\t\u00072012-08-2411:36:00\n�\bs�\u0011�\u0001U@#333333.�~\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2411:36:00\n�\bs�\u0011�\u0001B\u0011@0�p��\n=.�}\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2414:40:00\u0013�\t4�\u0011�\u0001=\u0012@/Ǯ\u0014z�H.�|\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2418:11:00\u0011�\b��\u0011�\u0001=\u000f@)�(�\\/�{\n\u0000!\u001d\u0003\u0003\u0002\u0002\u0001\u00072012-08-2412:10:00\u0000��\b��\u0011�\u0001=\u0011@xHz�G�\u0014.�z\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2416:06:00{\n\t��\u0013D\u0001B\u0019@��\\(�/�y\n\u0000!\u001d\u0003\u0003\u0002\u0002\u0001\u00072012-08-2415:20:00\u0000�\u0018\u000b@P\u0013D\u0001L+@F<(�\\.�x\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2413:36:00\nK\u0006)�\u0013D\u0001=\u0016@4+�\u001e�Q�.�w\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2411:24:00\u0010�\u000b0#\u0013D\u0001=\u0017@4��\u001e�Q�\n\u0000\u0000\u0000Q\u0000�\u0000\u000f�\u000f�\u000fo\u000f?\u000f\u000f\u000e�\u000e�\u000e\u000eN\u000e\u001e\n�\n�\n�\n^\n.\f�\f�\f�\fk\fC\f\u0012\u000b�\u000b�\u000b�\u000bR\u000b\"\n�\n�\n�\n`\n0\n\u0000\t�\t�\tp\tA\t\u0012\b�\b�\b�\bQ\b \u0007�\u0007�\u0007�\u0007_\u0007/\u0006�\u0006�\u0006�\u0006n\u0006>\u0006\u000e\u0005�\u0005�\u0005~\u0005T\u0005$\u0004�\u0004�\u0004�\u0004c\u00042\u0004\u0001\u0003�\u0003�\u0003n\u0003=\u0003\n\u0002�\u0002�\u0002z\u0002H\u0002\u0018\u0001�\u0001�\u0001�\u0001V\u0001&\u0000�\u0000�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000.�\u0018\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2408:32:00\u000b�\b�]\u0014�\u0001=\f@%��G�\u0014{-�\u0017\n\u0000!\u001d\u0001\u0003\u0002\u0002\u0001\u00072012-08-2412:25:00`\n!l\u0014�\u0001=\u0017@4aG�\u0014z�-�\u0016\n\u0000!\u001d\u0001\u0003\u0002\u0002\u0001\u00072012-08-2412:18:00`\t�\u0014�\u0001=\u0012@0�G�\u0014z�-�\u0015\n\u0000!\u001d\u0001\u0003\u0002\u0002\u0001\u00072012-08-2411:44:00`\u000b��\u0014�\u0001=\u0012@0n\u0014z�G�-�\u0014\n\u0000!\u001d\u0002\u0003\u0002\u0002\b\u00072012-08-2411:39:00\u0012�\u0007i�\u0014�\u0001P?�(�\\).�\u0013\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2411:39:00\u0012�\u0007i�\u0014�\u0001=\u0015@3\\(�\\.�\u0012\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2410:17:00\fb\tI�\u0014�\u0001=\b@\u001c�G�\u0014z�-�\u0011\n\u0000!\u001d\u0001\u0003\u0002\u0002\u0001\u00072012-08-2409:26:00`\u000b��\u0014�\u0001B\u001d@<+�\u001e�Q�/�\u0010\n\u0000!\u001d\u0003\u0003\u0002\u0002\u0001\u00072012-08-2409:18:00\u0000�\u0018\u000b@T\u0014�\u0001=\u0006@\u0015\\(��.�\u000f\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2412:58:00\u0011:\n\u001c�\u0011�\u0001=\u0012@0\u0014z�G�\u0014.�\u000e\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2407:37:00\u000f�\u0007�\u0004\u0011�\u0001=\u0012@0�\u001e�Q�.�\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2416:20:00\u0012�\u000b1�\u0014�\u0001=\u000e@*\u0005\u001e�Q�-�\f\n\u0000!\u001d\u0002\u0002\u0002\u0002\u0001\u00072012-08-2415:15:00\f�}9\u0014�\u0001=\n@&�fffff.�\u000b\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2407:06:00\n�\u0006�G\u0014�\u0001=\u0012@0��\u001e�R.�",
+                "metadata": {
+                  "chunk_index": 4
+                }
+              },
+              "matched_value": "6",
+              "match_type": "structured_to_text"
+            },
+            {
+              "left": {
+                "db_path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+                "table_name": "yearmonth",
+                "row": {
+                  "CustomerID": "6",
+                  "Date": "201306",
+                  "Consumption": "573.85"
+                }
+              },
+              "right": {
+                "path": "db/transactions_1k.db",
+                "record_type": "text_chunk",
+                "record_id": "db/transactions_1k.db#chunk:5",
+                "text": "\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2409:20:00\u000e,\n��\u0011�\u0001=\u0010@,B�\\(��.�\t\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2408:09:00\n�\u0006�6\u0011�\u0001=/@EAG�\u0014z�.�\b\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2406:01:00\n�\nr\"\u0011�\u0001=\u0007@\u0019(�\\).�\u0007\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2414:50:00\f�\n�e\u0012�\u0001=\u0007@\u0018(�\\).�\u0006\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2418:36:00\u0013�\nlM\u0014N\u0001=\b@\u001d\\(��.�\u0005\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2413:52:00\t�\u000b4�\u0014E\u0001L\u0018@9G�\u0014z�H.�\u0004\n\u0000!\u001d\u0002\u0003\u0002\u0002\u0001\u00072012-08-2408:32:00\f�\bʋ\u0014E\u0001=\u0016@3�\u0000\u0000\u0000\u0000\u0000,�\u0003\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2415:03:00\u001a�\t%W\u0004�\u0005@6\u0002�\\(��-�\u0002\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2413:30:00\u0015\u0005\bB�\n�\u0002\u001e@�]\n=p��-�\u0001\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2414:42:00*<\b�[\u0001\t\u0002$@�:�Q�\u001f'�\u0000\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00022012-08-2411:32:00*<\b�]\u0001\t\u0002(\u0003�-�\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2411:31:00*<\u0007*�\u0001\t\u0002\u0019@���\u001e�Q�-�~\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2415:00:00+�\bߔ\u00158\u0005\u0003@M�fffff-�}\n\u0000!\u001d\u0003\u0003\u0002\u0001\b\u00072012-08-2414:54:00\u0000�s\n�d\u00158\u000f@8\u0017\n=p��-�|\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:41:00\u001ap\u000b\u0006t\u0001�\u0002\u001f@���\u0014z�H-�{\n\u0000!\u001d\u0002\u0003\u0002\u0001\u0001\u00072012-08-2412:30:00x�\n��\u0001�\u0002\u0018@�E33333,�z\n\u0000!\u001d\u0002\u0003\u0002\u0001\t\u00072012-08-2412:16:00\u001ap",
+                "metadata": {
+                  "chunk_index": 5
+                }
+              },
+              "matched_value": "6",
+              "match_type": "structured_to_text"
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 13,
+      "thought": "The link tool returned binary database chunks instead of actual transaction records. I need to directly query the transactions_1k.db to find GasStationIDs for CustomerIDs that have June 2013 transactions in yearmonth.csv. Let me first get the CustomerIDs from yearmonth with Date='201306', then use those to query transactions_1k for GasStationIDs, and finally get the countries from gasstations.",
+      "action": "execute_context_sql",
+      "action_input": {
+        "path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+        "sql": "SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'",
+        "limit": 500
+      },
+      "raw_response": "```json\n{\"thought\":\"The link tool returned binary database chunks instead of actual transaction records. I need to directly query the transactions_1k.db to find GasStationIDs for CustomerIDs that have June 2013 transactions in yearmonth.csv. Let me first get the CustomerIDs from yearmonth with Date='201306', then use those to query transactions_1k for GasStationIDs, and finally get the countries from gasstations.\",\"action\":\"execute_context_sql\",\"action_input\":{\"path\":\"/tmp/data_agent_structured_v8r_ulzq.sqlite\",\"sql\":\"SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'\",\"limit\":500}}\n```",
+      "observation": {
+        "ok": true,
+        "tool": "execute_context_sql",
+        "content": {
+          "path": "/tmp/data_agent_structured_v8r_ulzq.sqlite",
+          "columns": [
+            "CustomerID"
+          ],
+          "rows": [
+            [
+              "6"
+            ],
+            [
+              "7"
+            ],
+            [
+              "9"
+            ],
+            [
+              "20"
+            ],
+            [
+              "35"
+            ],
+            [
+              "37"
+            ],
+            [
+              "38"
+            ],
+            [
+              "39"
+            ],
+            [
+              "44"
+            ],
+            [
+              "48"
+            ],
+            [
+              "51"
+            ],
+            [
+              "52"
+            ],
+            [
+              "63"
+            ],
+            [
+              "73"
+            ],
+            [
+              "75"
+            ],
+            [
+              "77"
+            ],
+            [
+              "82"
+            ],
+            [
+              "87"
+            ],
+            [
+              "92"
+            ],
+            [
+              "96"
+            ],
+            [
+              "100"
+            ],
+            [
+              "101"
+            ],
+            [
+              "103"
+            ],
+            [
+              "104"
+            ],
+            [
+              "105"
+            ],
+            [
+              "106"
+            ],
+            [
+              "114"
+            ],
+            [
+              "117"
+            ],
+            [
+              "122"
+            ],
+            [
+              "123"
+            ],
+            [
+              "128"
+            ],
+            [
+              "137"
+            ],
+            [
+              "144"
+            ],
+            [
+              "160"
+            ],
+            [
+              "166"
+            ],
+            [
+              "169"
+            ],
+            [
+              "172"
+            ],
+            [
+              "175"
+            ],
+            [
+              "193"
+            ],
+            [
+              "201"
+            ],
+            [
+              "204"
+            ],
+            [
+              "210"
+            ],
+            [
+              "212"
+            ],
+            [
+              "214"
+            ],
+            [
+              "215"
+            ],
+            [
+              "216"
+            ],
+            [
+              "220"
+            ],
+            [
+              "224"
+            ],
+            [
+              "227"
+            ],
+            [
+              "230"
+            ],
+            [
+              "232"
+            ],
+            [
+              "233"
+            ],
+            [
+              "235"
+            ],
+            [
+              "236"
+            ],
+            [
+              "254"
+            ],
+            [
+              "256"
+            ],
+            [
+              "272"
+            ],
+            [
+              "274"
+            ],
+            [
+              "281"
+            ],
+            [
+              "283"
+            ],
+            [
+              "285"
+            ],
+            [
+              "289"
+            ],
+            [
+              "296"
+            ],
+            [
+              "305"
+            ],
+            [
+              "314"
+            ],
+            [
+              "322"
+            ],
+            [
+              "323"
+            ],
+            [
+              "324"
+            ],
+            [
+              "331"
+            ],
+            [
+              "335"
+            ],
+            [
+              "337"
+            ],
+            [
+              "339"
+            ],
+            [
+              "342"
+            ],
+            [
+              "344"
+            ],
+            [
+              "345"
+            ],
+            [
+              "346"
+            ],
+            [
+              "348"
+            ],
+            [
+              "349"
+            ],
+            [
+              "370"
+            ],
+            [
+              "373"
+            ],
+            [
+              "381"
+            ],
+            [
+              "382"
+            ],
+            [
+              "392"
+            ],
+            [
+              "394"
+            ],
+            [
+              "407"
+            ],
+            [
+              "408"
+            ],
+            [
+              "419"
+            ],
+            [
+              "420"
+            ],
+            [
+              "421"
+            ],
+            [
+              "423"
+            ],
+            [
+              "424"
+            ],
+            [
+              "427"
+            ],
+            [
+              "431"
+            ],
+            [
+              "448"
+            ],
+            [
+              "453"
+            ],
+            [
+              "465"
+            ],
+            [
+              "475"
+            ],
+            [
+              "484"
+            ],
+            [
+              "496"
+            ],
+            [
+              "500"
+            ],
+            [
+              "504"
+            ],
+            [
+              "505"
+            ],
+            [
+              "509"
+            ],
+            [
+              "519"
+            ],
+            [
+              "522"
+            ],
+            [
+              "524"
+            ],
+            [
+              "531"
+            ],
+            [
+              "533"
+            ],
+            [
+              "534"
+            ],
+            [
+              "536"
+            ],
+            [
+              "539"
+            ],
+            [
+              "542"
+            ],
+            [
+              "544"
+            ],
+            [
+              "548"
+            ],
+            [
+              "551"
+            ],
+            [
+              "559"
+            ],
+            [
+              "560"
+            ],
+            [
+              "576"
+            ],
+            [
+              "579"
+            ],
+            [
+              "580"
+            ],
+            [
+              "583"
+            ],
+            [
+              "591"
+            ],
+            [
+              "592"
+            ],
+            [
+              "598"
+            ],
+            [
+              "600"
+            ],
+            [
+              "602"
+            ],
+            [
+              "603"
+            ],
+            [
+              "607"
+            ],
+            [
+              "615"
+            ],
+            [
+              "619"
+            ],
+            [
+              "623"
+            ],
+            [
+              "633"
+            ],
+            [
+              "634"
+            ],
+            [
+              "640"
+            ],
+            [
+              "643"
+            ],
+            [
+              "644"
+            ],
+            [
+              "645"
+            ],
+            [
+              "647"
+            ],
+            [
+              "649"
+            ],
+            [
+              "650"
+            ],
+            [
+              "651"
+            ],
+            [
+              "653"
+            ],
+            [
+              "654"
+            ],
+            [
+              "656"
+            ],
+            [
+              "657"
+            ],
+            [
+              "658"
+            ],
+            [
+              "660"
+            ],
+            [
+              "661"
+            ],
+            [
+              "665"
+            ],
+            [
+              "670"
+            ],
+            [
+              "671"
+            ],
+            [
+              "672"
+            ],
+            [
+              "677"
+            ],
+            [
+              "678"
+            ],
+            [
+              "679"
+            ],
+            [
+              "681"
+            ],
+            [
+              "683"
+            ],
+            [
+              "684"
+            ],
+            [
+              "686"
+            ],
+            [
+              "688"
+            ],
+            [
+              "689"
+            ],
+            [
+              "690"
+            ],
+            [
+              "693"
+            ],
+            [
+              "694"
+            ],
+            [
+              "700"
+            ],
+            [
+              "703"
+            ],
+            [
+              "704"
+            ],
+            [
+              "711"
+            ],
+            [
+              "715"
+            ],
+            [
+              "716"
+            ],
+            [
+              "718"
+            ],
+            [
+              "722"
+            ],
+            [
+              "726"
+            ],
+            [
+              "727"
+            ],
+            [
+              "730"
+            ],
+            [
+              "731"
+            ],
+            [
+              "732"
+            ],
+            [
+              "738"
+            ],
+            [
+              "739"
+            ],
+            [
+              "744"
+            ],
+            [
+              "746"
+            ],
+            [
+              "747"
+            ],
+            [
+              "752"
+            ],
+            [
+              "755"
+            ],
+            [
+              "757"
+            ],
+            [
+              "761"
+            ],
+            [
+              "764"
+            ],
+            [
+              "767"
+            ],
+            [
+              "773"
+            ],
+            [
+              "774"
+            ],
+            [
+              "776"
+            ],
+            [
+              "778"
+            ],
+            [
+              "789"
+            ],
+            [
+              "793"
+            ],
+            [
+              "796"
+            ],
+            [
+              "804"
+            ],
+            [
+              "808"
+            ],
+            [
+              "815"
+            ],
+            [
+              "818"
+            ],
+            [
+              "819"
+            ],
+            [
+              "821"
+            ],
+            [
+              "823"
+            ],
+            [
+              "824"
+            ],
+            [
+              "826"
+            ],
+            [
+              "829"
+            ],
+            [
+              "832"
+            ],
+            [
+              "836"
+            ],
+            [
+              "837"
+            ],
+            [
+              "840"
+            ],
+            [
+              "842"
+            ],
+            [
+              "843"
+            ],
+            [
+              "847"
+            ],
+            [
+              "849"
+            ],
+            [
+              "854"
+            ],
+            [
+              "857"
+            ],
+            [
+              "858"
+            ],
+            [
+              "867"
+            ],
+            [
+              "870"
+            ],
+            [
+              "871"
+            ],
+            [
+              "872"
+            ],
+            [
+              "874"
+            ],
+            [
+              "875"
+            ],
+            [
+              "878"
+            ],
+            [
+              "879"
+            ],
+            [
+              "884"
+            ],
+            [
+              "887"
+            ],
+            [
+              "897"
+            ],
+            [
+              "903"
+            ],
+            [
+              "904"
+            ],
+            [
+              "908"
+            ],
+            [
+              "909"
+            ],
+            [
+              "910"
+            ],
+            [
+              "914"
+            ],
+            [
+              "915"
+            ],
+            [
+              "916"
+            ],
+            [
+              "919"
+            ],
+            [
+              "924"
+            ],
+            [
+              "926"
+            ],
+            [
+              "930"
+            ],
+            [
+              "935"
+            ],
+            [
+              "940"
+            ],
+            [
+              "945"
+            ],
+            [
+              "946"
+            ],
+            [
+              "952"
+            ],
+            [
+              "953"
+            ],
+            [
+              "954"
+            ],
+            [
+              "955"
+            ],
+            [
+              "956"
+            ],
+            [
+              "958"
+            ],
+            [
+              "961"
+            ],
+            [
+              "966"
+            ],
+            [
+              "969"
+            ],
+            [
+              "978"
+            ],
+            [
+              "987"
+            ],
+            [
+              "993"
+            ],
+            [
+              "997"
+            ],
+            [
+              "998"
+            ],
+            [
+              "999"
+            ],
+            [
+              "1004"
+            ],
+            [
+              "1006"
+            ],
+            [
+              "1011"
+            ],
+            [
+              "1013"
+            ],
+            [
+              "1018"
+            ],
+            [
+              "1022"
+            ],
+            [
+              "1023"
+            ],
+            [
+              "1025"
+            ],
+            [
+              "1027"
+            ],
+            [
+              "1028"
+            ],
+            [
+              "1033"
+            ],
+            [
+              "1036"
+            ],
+            [
+              "1037"
+            ],
+            [
+              "1043"
+            ],
+            [
+              "1044"
+            ],
+            [
+              "1046"
+            ],
+            [
+              "1050"
+            ],
+            [
+              "1051"
+            ],
+            [
+              "1053"
+            ],
+            [
+              "1054"
+            ],
+            [
+              "1055"
+            ],
+            [
+              "1057"
+            ],
+            [
+              "1061"
+            ],
+            [
+              "1064"
+            ],
+            [
+              "1065"
+            ],
+            [
+              "1070"
+            ],
+            [
+              "1071"
+            ],
+            [
+              "1072"
+            ],
+            [
+              "1075"
+            ],
+            [
+              "1076"
+            ],
+            [
+              "1077"
+            ],
+            [
+              "1081"
+            ],
+            [
+              "1083"
+            ],
+            [
+              "1087"
+            ],
+            [
+              "1088"
+            ],
+            [
+              "1089"
+            ],
+            [
+              "1090"
+            ],
+            [
+              "1093"
+            ],
+            [
+              "1094"
+            ],
+            [
+              "1103"
+            ],
+            [
+              "1112"
+            ],
+            [
+              "1116"
+            ],
+            [
+              "1117"
+            ],
+            [
+              "1118"
+            ],
+            [
+              "1120"
+            ],
+            [
+              "1121"
+            ],
+            [
+              "1127"
+            ],
+            [
+              "1133"
+            ],
+            [
+              "1135"
+            ],
+            [
+              "1138"
+            ],
+            [
+              "1140"
+            ],
+            [
+              "1143"
+            ],
+            [
+              "1147"
+            ],
+            [
+              "1151"
+            ],
+            [
+              "1152"
+            ],
+            [
+              "1153"
+            ],
+            [
+              "1158"
+            ],
+            [
+              "1159"
+            ],
+            [
+              "1163"
+            ],
+            [
+              "1168"
+            ],
+            [
+              "1169"
+            ],
+            [
+              "1170"
+            ],
+            [
+              "1174"
+            ],
+            [
+              "1176"
+            ],
+            [
+              "1188"
+            ],
+            [
+              "1196"
+            ],
+            [
+              "1200"
+            ],
+            [
+              "1205"
+            ],
+            [
+              "1211"
+            ],
+            [
+              "1212"
+            ],
+            [
+              "1214"
+            ],
+            [
+              "1216"
+            ],
+            [
+              "1218"
+            ],
+            [
+              "1224"
+            ],
+            [
+              "1227"
+            ],
+            [
+              "1230"
+            ],
+            [
+              "1232"
+            ],
+            [
+              "1233"
+            ],
+            [
+              "1234"
+            ],
+            [
+              "1235"
+            ],
+            [
+              "1237"
+            ],
+            [
+              "1239"
+            ],
+            [
+              "1240"
+            ],
+            [
+              "1247"
+            ],
+            [
+              "1248"
+            ],
+            [
+              "1249"
+            ],
+            [
+              "1251"
+            ],
+            [
+              "1253"
+            ],
+            [
+              "1255"
+            ],
+            [
+              "1258"
+            ],
+            [
+              "1259"
+            ],
+            [
+              "1261"
+            ],
+            [
+              "1262"
+            ],
+            [
+              "1263"
+            ],
+            [
+              "1265"
+            ],
+            [
+              "1268"
+            ],
+            [
+              "1269"
+            ],
+            [
+              "1270"
+            ],
+            [
+              "1271"
+            ],
+            [
+              "1275"
+            ],
+            [
+              "1276"
+            ],
+            [
+              "1278"
+            ],
+            [
+              "1281"
+            ],
+            [
+              "1284"
+            ],
+            [
+              "1286"
+            ],
+            [
+              "1289"
+            ],
+            [
+              "1294"
+            ],
+            [
+              "1296"
+            ],
+            [
+              "1299"
+            ],
+            [
+              "1300"
+            ],
+            [
+              "1303"
+            ],
+            [
+              "1304"
+            ],
+            [
+              "1306"
+            ],
+            [
+              "1307"
+            ],
+            [
+              "1315"
+            ],
+            [
+              "1319"
+            ],
+            [
+              "1322"
+            ],
+            [
+              "1330"
+            ],
+            [
+              "1332"
+            ],
+            [
+              "1333"
+            ],
+            [
+              "1336"
+            ],
+            [
+              "1339"
+            ],
+            [
+              "1341"
+            ],
+            [
+              "1343"
+            ],
+            [
+              "1345"
+            ],
+            [
+              "1349"
+            ],
+            [
+              "1350"
+            ],
+            [
+              "1354"
+            ],
+            [
+              "1355"
+            ],
+            [
+              "1357"
+            ],
+            [
+              "1360"
+            ],
+            [
+              "1362"
+            ],
+            [
+              "1364"
+            ],
+            [
+              "1365"
+            ],
+            [
+              "1367"
+            ],
+            [
+              "1369"
+            ],
+            [
+              "1379"
+            ],
+            [
+              "1380"
+            ],
+            [
+              "1384"
+            ],
+            [
+              "1389"
+            ],
+            [
+              "1390"
+            ],
+            [
+              "1391"
+            ],
+            [
+              "1394"
+            ],
+            [
+              "1397"
+            ],
+            [
+              "1400"
+            ],
+            [
+              "1402"
+            ],
+            [
+              "1403"
+            ],
+            [
+              "1404"
+            ],
+            [
+              "1405"
+            ],
+            [
+              "1407"
+            ],
+            [
+              "1415"
+            ],
+            [
+              "1417"
+            ],
+            [
+              "1419"
+            ],
+            [
+              "1421"
+            ],
+            [
+              "1423"
+            ],
+            [
+              "1426"
+            ],
+            [
+              "1428"
+            ],
+            [
+              "1432"
+            ],
+            [
+              "1436"
+            ],
+            [
+              "1440"
+            ],
+            [
+              "1443"
+            ],
+            [
+              "1444"
+            ],
+            [
+              "1446"
+            ],
+            [
+              "1447"
+            ],
+            [
+              "1452"
+            ],
+            [
+              "1453"
+            ],
+            [
+              "1454"
+            ],
+            [
+              "1455"
+            ],
+            [
+              "1457"
+            ],
+            [
+              "1460"
+            ],
+            [
+              "1461"
+            ],
+            [
+              "1463"
+            ],
+            [
+              "1464"
+            ],
+            [
+              "1465"
+            ],
+            [
+              "1466"
+            ],
+            [
+              "1467"
+            ],
+            [
+              "1470"
+            ],
+            [
+              "1471"
+            ],
+            [
+              "1472"
+            ],
+            [
+              "1473"
+            ],
+            [
+              "1474"
+            ],
+            [
+              "1480"
+            ],
+            [
+              "1482"
+            ],
+            [
+              "1483"
+            ],
+            [
+              "1485"
+            ],
+            [
+              "1486"
+            ],
+            [
+              "1491"
+            ],
+            [
+              "1492"
+            ],
+            [
+              "1497"
+            ],
+            [
+              "1498"
+            ],
+            [
+              "1499"
+            ],
+            [
+              "1500"
+            ],
+            [
+              "1508"
+            ],
+            [
+              "1512"
+            ],
+            [
+              "1518"
+            ],
+            [
+              "1521"
+            ],
+            [
+              "1523"
+            ],
+            [
+              "1528"
+            ],
+            [
+              "1535"
+            ],
+            [
+              "1537"
+            ],
+            [
+              "1538"
+            ],
+            [
+              "1542"
+            ],
+            [
+              "1543"
+            ],
+            [
+              "1545"
+            ],
+            [
+              "1546"
+            ],
+            [
+              "1548"
+            ],
+            [
+              "1549"
+            ],
+            [
+              "1550"
+            ],
+            [
+              "1552"
+            ],
+            [
+              "1555"
+            ],
+            [
+              "1559"
+            ],
+            [
+              "1567"
+            ],
+            [
+              "1569"
+            ],
+            [
+              "1575"
+            ],
+            [
+              "1578"
+            ],
+            [
+              "1579"
+            ],
+            [
+              "1580"
+            ],
+            [
+              "1581"
+            ],
+            [
+              "1583"
+            ],
+            [
+              "1584"
+            ],
+            [
+              "1585"
+            ],
+            [
+              "1588"
+            ],
+            [
+              "1595"
+            ],
+            [
+              "1596"
+            ],
+            [
+              "1597"
+            ],
+            [
+              "1599"
+            ],
+            [
+              "1600"
+            ],
+            [
+              "1601"
+            ],
+            [
+              "1602"
+            ],
+            [
+              "1606"
+            ],
+            [
+              "1609"
+            ],
+            [
+              "1622"
+            ],
+            [
+              "1626"
+            ],
+            [
+              "1627"
+            ],
+            [
+              "1628"
+            ],
+            [
+              "1629"
+            ],
+            [
+              "1630"
+            ],
+            [
+              "1631"
+            ],
+            [
+              "1632"
+            ],
+            [
+              "1636"
+            ],
+            [
+              "1637"
+            ],
+            [
+              "1639"
+            ]
+          ],
+          "row_count": 500,
+          "truncated": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "step_index": 14,
+      "thought": "",
+      "action": "__error__",
+      "action_input": {},
+      "raw_response": "```json\n{\"thought\":\"I have CustomerIDs with June 2013 transactions. Now I need to use these to query the transactions_1k.db database to find GasStationIDs, then get the countries from gasstations. Let me use a Python script to bridge the two databases since they are separate files.\",\"action\":\"execute_python\",\"action_input\":\"import sqlite3\\n\\n# Get CustomerIDs with June 2013 transactions\\ncursor = sqlite3.connect('/tmp/data_agent_structured_v8r_ulzq.sqlite').cursor()\\ncursor.execute(\\\"SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'\\\")\\ncustomer_ids = [str(row[0]) for row in cursor.fetchall()]\\n\\n# Query transactions_1k.db for GasStationIDs for these customers\\nconn = sqlite3.connect('db/transactions_1k.db')\\ncursor = conn.cursor()\\n\\n# Build the IN clause\\nplaceholders = ','.join(['?' for _ in customer_ids])\\ncursor.execute(f\\\"SELECT DISTINCT GasStationID FROM transactions_1k WHERE CustomerID IN ({placeholders})\\\", customer_ids)\\ngas_station_ids = [row[0] for row in cursor.fetchall()]\\nconn.close()\\n\\n# Query gasstations.json for countries\\nimport json\\nwith open('json/gasstations.json', 'r') as f:\\n    data = json.load(f)\\n\\ngasstations = {gs['GasStationID']: gs['Country'] for gs in data['records']}\\n\\n# Get countries for the gas stations\\ncountries = set()\\nfor gs_id in gas_station_ids:\\n    if gs_id in gasstations:\\n        countries.add(gasstations[gs_id])\\n\\nprint('Countries:', sorted(countries))\\nprint('Number of countries:', len(countries))\\nprint('Sample gas station IDs:', list(gas_station_ids)[:10])\"}\n```",
+      "observation": {
+        "ok": false,
+        "error_type": "parse_error",
+        "error": "action_input must be a JSON object.",
+        "retry_hint": "Return exactly one JSON object inside one ```json fenced block. Use keys `thought`, `action`, and `action_input`. `action_input` must be a JSON object, even when empty.",
+        "format_hint": "Set `action_input` to an object like {} instead of a list or string."
+      },
+      "ok": false
+    },
+    {
+      "step_index": 15,
+      "thought": "",
+      "action": "__error__",
+      "action_input": {},
+      "raw_response": "```json\n{\"thought\":\"I need to fix the Python code format - the action_input needs to be a proper JSON object with the code as a string value.\",\"action\":\"execute_python\",\"action_input\":{\"code\":\"import sqlite3\\n\\n# Get CustomerIDs with June 2013 transactions\\ncursor = sqlite3.connect('/tmp/data_agent_structured_v8r_ulzq.sqlite').cursor()\\ncursor.execute(\\\"SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'\\\")\\ncustomer_ids = [str(row[0]) for row in cursor.fetchall()]\\n\\n# Query transactions_1k.db for GasStationIDs for these customers\\nconn = sqlite3.connect('db/transactions_1k.db')\\ncursor = conn.cursor()\\n\\n# Build the IN clause\\nplaceholders = ','.join(['?' for _ in customer_ids])\\ncursor.execute(f\\\"SELECT DISTINCT GasStationID FROM transactions_1k WHERE CustomerID IN ({placeholders})\\\", customer_ids)\\ngas_station_ids = [row[0] for row in cursor.fetchall()]\\nconn.close()\\n\\n# Query gasstations.json for countries\\nimport json\\nwith open('json/gasstations.json', 'r') as f:\\n    data = json.load(f)\\n\\ngasstations = {gs['GasStationID']: gs['Country'] for gs in data['records']}\\n\\n# Get countries for the gas stations\\ncountries = set()\\nfor gs_id in gas_station_ids:\\n    if gs_id in gasstations:\\n        countries.add(gasstations[gs_id])\\n\\nprint('Countries:', sorted(countries))\\nprint('Number of countries:', len(countries))\\nprint('Sample gas station IDs:', list(gas_station_ids)[:10])\"}\n```",
+      "observation": {
+        "ok": false,
+        "error_type": "parse_error",
+        "error": "Expecting ',' delimiter: line 1 column 1410 (char 1409)",
+        "retry_hint": "Return exactly one JSON object inside one ```json fenced block. Use keys `thought`, `action`, and `action_input`. `action_input` must be a JSON object, even when empty."
+      },
+      "ok": false
+    },
+    {
+      "step_index": 16,
+      "thought": "",
+      "action": "__error__",
+      "action_input": {},
+      "raw_response": "```json\n{\"thought\":\"The Python code has a syntax error due to the f-string with curly braces. I need to escape them properly or use a different approach. Let me try a simpler Python script that avoids the f-string issue.\",\"action\":\"execute_python\",\"action_input\":{\"code\":\"import sqlite3\\nimport json\\n\\n# Get CustomerIDs with June 2013 transactions\\ncursor = sqlite3.connect('/tmp/data_agent_structured_v8r_ulzq.sqlite').cursor()\\ncursor.execute(\\\"SELECT DISTINCT CustomerID FROM yearmonth WHERE Date = '201306'\\\")\\ncustomer_ids = [str(row[0]) for row in cursor.fetchall()]\\n\\n# Query transactions_1k.db for GasStationIDs for these customers\\nconn = sqlite3.connect('db/transactions_1k.db')\\ncursor = conn.cursor()\\n\\n# Build the IN clause\\nplaceholders = ','.join(['?' for _ in customer_ids])\\nquery = \\\"SELECT DISTINCT GasStationID FROM transactions_1k WHERE CustomerID IN (\\\" + placeholders + \\\")\\\"\\ncursor.execute(query, customer_ids)\\ngas_station_ids = [row[0] for row in cursor.fetchall()]\\nconn.close()\\n\\n# Query gasstations.json for countries\\nwith open('json/gasstations.json', 'r') as f:\\n    data = json.load(f)\\n\\ngasstations = {gs['GasStationID']: gs['Country'] for gs in data['records']}\\n\\n# Get countries for the gas stations\\ncountries = set()\\nfor gs_id in gas_station_ids:\\n    if gs_id in gasstations:\\n        countries.add(gasstations[gs_id])\\n\\nprint('Countries:', sorted(countries))\\nprint('Number of countries:', len(countries))\\nprint('Sample gas station IDs:', list(gas_station_ids)[:10])\"}\n```",
+      "observation": {
+        "ok": false,
+        "error_type": "parse_error",
+        "error": "Expecting ',' delimiter: line 1 column 1511 (char 1510)",
+        "retry_hint": "Return exactly one JSON object inside one ```json fenced block. Use keys `thought`, `action`, and `action_input`. `action_input` must be a JSON object, even when empty."
+      },
+      "ok": false
+    }
+  ],
+  "failure_reason": "Agent did not submit an answer within max_steps.",
+  "succeeded": false,
+  "e2e_elapsed_seconds": 416.679
+}

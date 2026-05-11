@@ -413,6 +413,77 @@ class TestMultiStepSuccess:
         assert "mixed-source task" in control_messages[-1]
         assert "Bridge the sources in stages" in control_messages[-1]
 
+    def test_mixed_source_sql_key_extraction_marks_bridge_keys(self, ctx: Path):
+        (ctx / "data.db").write_text("", encoding="utf-8")
+        (ctx / "facts.csv").write_text("id,value\n1,x\n", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-mixed-keys",
+                difficulty="medium",
+                question="How many downstream rows match these ids?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        observation = {
+            "ok": True,
+            "tool": "execute_context_sql",
+            "content": {
+                "path": "/tmp/scanned.sqlite",
+                "columns": ["event_id"],
+                "rows": [["rec1"], ["rec2"]],
+                "row_count": 2,
+                "truncated": False,
+            },
+        }
+
+        updated = _augment_general_sql_execution_observation(task, observation)
+        assert updated["bridge_key_ready"] is True
+        assert updated["bridge_key_columns"] == ["event_id"]
+        assert updated["suggested_next_actions"] == ["execute_context_sql", "inspect_sqlite_schema"]
+
+    def test_mixed_source_control_message_prefers_downstream_lookup_after_keys(self, ctx: Path):
+        (ctx / "data.db").write_text("", encoding="utf-8")
+        (ctx / "facts.csv").write_text("id,value\n1,x\n", encoding="utf-8")
+        task = PublicTask(
+            record=TaskRecord(
+                task_id="agent-test-mixed-stage",
+                difficulty="medium",
+                question="How many downstream rows match these ids?",
+            ),
+            assets=TaskAssets(task_dir=ctx.parent, context_dir=ctx),
+        )
+        state = AgentRuntimeState()
+        state.steps.append(
+            StepRecord(
+                step_index=1,
+                thought="",
+                action="execute_context_sql",
+                action_input={"path": "/tmp/scanned.sqlite", "sql": "SELECT event_id FROM attendance"},
+                raw_response="",
+                observation={
+                    "ok": True,
+                    "tool": "execute_context_sql",
+                    "bridge_key_ready": True,
+                    "bridge_key_columns": ["event_id"],
+                    "bridge_key_count": 2,
+                    "content": {
+                        "path": "/tmp/scanned.sqlite",
+                        "columns": ["event_id"],
+                        "rows": [["rec1"], ["rec2"]],
+                        "row_count": 2,
+                        "truncated": False,
+                    },
+                },
+                ok=True,
+            )
+        )
+        agent = ReActAgent(model=ScriptedModelAdapter([]), tools=create_default_tool_registry(), config=ReActAgentConfig(max_steps=4))
+        messages = agent._build_messages(task, state, next_step_index=2)
+        control_messages = [message.content for message in messages if message.role == "user" and "Control hints:" in message.content]
+        assert control_messages
+        assert "extracted bridge keys" in control_messages[-1]
+        assert "downstream source next" in control_messages[-1]
+
     def test_doc_rule_task_prompt_mentions_rule_grounding(self, ctx: Path):
         (ctx / "knowledge.md").write_text("WBC normal range is documented here.", encoding="utf-8")
         task = PublicTask(

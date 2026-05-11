@@ -168,6 +168,11 @@ class AgentPolicyState:
     has_ready_sql_result: bool
     has_grounded_sql_result: bool
     mixed_source_mode: bool
+    has_bridge_keys_ready: bool
+    bridge_stage: str
+    bridge_source_path: str | None
+    bridge_key_columns: tuple[str, ...]
+    bridge_key_count: int
     doc_rule_mode: bool
     hard_doc_mode: bool
     recent_rule_hints: tuple[str, ...]
@@ -607,6 +612,71 @@ def _find_last_pending_selected_sql_observation(steps: list[StepRecord]) -> dict
     return None
 
 
+def _extract_sql_path_from_observation(observation: dict[str, object]) -> str | None:
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return None
+    path = content.get("path")
+    return str(path) if isinstance(path, str) and path else None
+
+
+def _find_last_bridge_key_observation(steps: list[StepRecord]) -> dict[str, object] | None:
+    for step in reversed(steps):
+        observation = step.observation
+        if not isinstance(observation, dict) or not observation.get("ok"):
+            continue
+        if observation.get("tool") != "execute_context_sql":
+            continue
+        if observation.get("bridge_key_ready"):
+            return observation
+    return None
+
+
+def _infer_mixed_source_bridge_progress(
+    steps: list[StepRecord],
+    bridge_observation: dict[str, object] | None,
+) -> dict[str, object]:
+    if bridge_observation is None:
+        return {
+            "stage": "discover",
+            "source_path": None,
+            "key_columns": tuple(),
+            "key_count": 0,
+        }
+
+    bridge_path = _extract_sql_path_from_observation(bridge_observation)
+    bridge_columns_raw = bridge_observation.get("bridge_key_columns")
+    bridge_columns = tuple(bridge_columns_raw) if isinstance(bridge_columns_raw, list) else tuple()
+    bridge_key_count = bridge_observation.get("bridge_key_count")
+    key_count = int(bridge_key_count) if isinstance(bridge_key_count, int) else 0
+    stage = "keys_ready"
+
+    bridge_index = -1
+    for index in range(len(steps) - 1, -1, -1):
+        if steps[index].observation is bridge_observation:
+            bridge_index = index
+            break
+
+    if bridge_index >= 0:
+        for later_step in steps[bridge_index + 1 :]:
+            if later_step.action != "execute_context_sql" or not later_step.ok:
+                continue
+            later_observation = later_step.observation
+            if not isinstance(later_observation, dict):
+                continue
+            later_path = _extract_sql_path_from_observation(later_observation)
+            if bridge_path and later_path and later_path != bridge_path:
+                stage = "downstream_lookup"
+                if later_observation.get("ready_to_answer_if_grounded") or later_observation.get("bridge_downstream_rows_ready"):
+                    stage = "ready_to_close"
+    return {
+        "stage": stage,
+        "source_path": bridge_path,
+        "key_columns": bridge_columns,
+        "key_count": key_count,
+    }
+
+
 def _build_policy_state(
     state: AgentRuntimeState,
     *,
@@ -618,6 +688,8 @@ def _build_policy_state(
     pending_selected_sql = _find_last_pending_selected_sql_observation(state.steps)
     ready_sql_observation = _find_last_ready_sql_observation(state.steps)
     grounded_sql_observation = _find_last_grounded_sql_observation(state.steps)
+    bridge_observation = _find_last_bridge_key_observation(state.steps)
+    bridge_progress = _infer_mixed_source_bridge_progress(state.steps, bridge_observation)
     recent_rule_hints = _find_recent_rule_hints(task, state.steps)
     return AgentPolicyState(
         next_step_index=next_step_index,
@@ -627,6 +699,11 @@ def _build_policy_state(
         has_ready_sql_result=ready_sql_observation is not None,
         has_grounded_sql_result=grounded_sql_observation is not None,
         mixed_source_mode=_task_has_mixed_structured_sources(task),
+        has_bridge_keys_ready=bridge_observation is not None,
+        bridge_stage=str(bridge_progress["stage"]),
+        bridge_source_path=bridge_progress["source_path"] if isinstance(bridge_progress["source_path"], str) else None,
+        bridge_key_columns=bridge_progress["key_columns"] if isinstance(bridge_progress["key_columns"], tuple) else tuple(),
+        bridge_key_count=int(bridge_progress["key_count"]) if isinstance(bridge_progress["key_count"], int) else 0,
         doc_rule_mode=_task_needs_doc_rule_grounding(task),
         hard_doc_mode=task.difficulty.casefold().strip() in {"hard", "extreme"} and _task_needs_doc_rule_grounding(task),
         recent_rule_hints=recent_rule_hints,
@@ -779,6 +856,19 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
         hints.append(
             "Do not assume one SQL query can span multiple databases or files. Bridge the sources in stages."
         )
+        if policy.bridge_stage == "keys_ready":
+            key_text = ", ".join(policy.bridge_key_columns) if policy.bridge_key_columns else "observed keys"
+            hints.append(
+                f"You already extracted bridge keys ({key_text}). Query the downstream source next instead of more discovery."
+            )
+        elif policy.bridge_stage == "downstream_lookup":
+            hints.append(
+                "You already moved into downstream lookup. Prefer filtering or aggregating there before returning to discovery."
+            )
+        elif policy.bridge_stage == "ready_to_close":
+            hints.append(
+                "The mixed-source bridge is complete and downstream rows are grounded. Prefer final aggregation or answer now."
+            )
     if policy.hard_doc_mode and not policy.recent_rule_hints:
         hints.append(
             "This hard task likely needs one targeted rule lookup from knowledge/docs before a long SQL loop. Prefer one focused retrieve(mode='rule') or one relevant read_doc, then apply the rule to structured data."
@@ -805,6 +895,8 @@ def _build_control_message(task: PublicTask, policy: AgentPolicyState) -> str | 
         hints.append("A grounded SQL result already exists. Avoid more exploration unless the current columns still clearly need reshaping.")
     if policy.list_context_count >= 2:
         hints.append("Do not call list_context again unless a missing-path error forces it.")
+    if policy.bridge_stage in {"keys_ready", "downstream_lookup"} and policy.low_signal_count >= 3:
+        hints.append("Stop broad exploration. Use the observed bridge keys to complete the structured lookup path now.")
     if not hints:
         return None
     return "Control hints:\n- " + "\n- ".join(hints)
@@ -1127,6 +1219,68 @@ def _sanitize_answer_action_input(
     }
 
 
+def _is_key_like_column_name(column_name: str) -> bool:
+    tokens = _tokenize_text(column_name)
+    if not tokens:
+        return False
+    if tokens[-1] == "id":
+        return True
+    return any(token in {"id", "key", "uuid"} for token in tokens)
+
+
+def _looks_like_bridge_key_result(columns: list[str], rows: list[list[Any]], *, row_count: int, truncated: bool) -> bool:
+    if truncated or row_count <= 0 or row_count > 200:
+        return False
+    if not columns or len(columns) > 2:
+        return False
+    key_like_count = sum(1 for column in columns if _is_key_like_column_name(column))
+    if key_like_count == 0:
+        return False
+    for index, column in enumerate(columns):
+        if _is_key_like_column_name(column) or _is_aggregate_column_name(column):
+            continue
+        if _column_is_mostly_numeric(rows, index):
+            continue
+        return False
+    return True
+
+
+def _augment_mixed_source_sql_observation(task: PublicTask, observation: dict[str, object]) -> dict[str, object]:
+    if not _task_has_mixed_structured_sources(task):
+        return observation
+
+    content = observation.get("content")
+    if not isinstance(content, dict):
+        return observation
+
+    columns = content.get("columns")
+    rows = content.get("rows")
+    row_count = content.get("row_count")
+    truncated = bool(content.get("truncated"))
+    if not isinstance(columns, list) or not all(isinstance(item, str) for item in columns):
+        return observation
+    if not isinstance(rows, list) or not all(isinstance(row, list) for row in rows):
+        return observation
+    if not isinstance(row_count, int) or row_count <= 0:
+        return observation
+
+    updated = dict(observation)
+    if _looks_like_bridge_key_result(columns, rows, row_count=row_count, truncated=truncated):
+        updated["bridge_key_ready"] = True
+        updated["bridge_key_columns"] = list(columns)
+        updated["bridge_key_count"] = row_count
+        updated["bridge_source_path"] = str(content.get("path") or "")
+        updated["retry_hint"] = (
+            "You extracted bridge keys from one structured source. Query the downstream source next with those observed keys instead of more discovery."
+        )
+        updated["suggested_next_actions"] = ["execute_context_sql", "inspect_sqlite_schema"]
+        return updated
+
+    if len(columns) <= 3 and not truncated:
+        updated["bridge_downstream_rows_ready"] = True
+    return updated
+
+
 def _augment_general_sql_execution_observation(
     task: PublicTask,
     observation: dict[str, object],
@@ -1152,6 +1306,7 @@ def _augment_general_sql_execution_observation(
         list(columns),
         [list(row) for row in rows if isinstance(row, list)],
     )
+    updated = _augment_mixed_source_sql_observation(task, updated)
 
     if _question_expects_single_value(task.question):
         if len(sanitized_columns) == 1 and len(sanitized_rows) == 1:
